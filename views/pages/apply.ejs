@@ -103,6 +103,7 @@
           <div>
             <label class="text-sm font-semibold text-pickle-ink">組別</label>
             <select
+              id="divisionSelect"
               name="division"
               class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
             >
@@ -115,12 +116,12 @@
                 <% const d4 = "4 - 30+ - 3.0+ - 男雙"; %>
                 <% const d5 = "5 - 30+ - 3.0+ - 女雙"; %>
                 <% const d6 = "6 - 30+ - 3.0+ - 混雙"; %>
-                <option value="<%= d1 %>" <%= values.division === d1 ? 'selected' : '' %>><%= d1 %></option>
-                <option value="<%= d2 %>" <%= values.division === d2 ? 'selected' : '' %>><%= d2 %></option>
-                <option value="<%= d3 %>" <%= values.division === d3 ? 'selected' : '' %>><%= d3 %></option>
-                <option value="<%= d4 %>" <%= values.division === d4 ? 'selected' : '' %>><%= d4 %></option>
-                <option value="<%= d5 %>" <%= values.division === d5 ? 'selected' : '' %>><%= d5 %></option>
-                <option value="<%= d6 %>" <%= values.division === d6 ? 'selected' : '' %>><%= d6 %></option>
+                <option value="<%= d1 %>" data-fee-hkd="788" <%= values.division === d1 ? 'selected' : '' %>>30歲以上 DUPR 3.0以下 男雙（HK$788/組）</option>
+                <option value="<%= d2 %>" data-fee-hkd="788" <%= values.division === d2 ? 'selected' : '' %>>30歲以上 DUPR 3.0以下 女雙（HK$788/組）</option>
+                <option value="<%= d3 %>" data-fee-hkd="788" <%= values.division === d3 ? 'selected' : '' %>>30歲以上 DUPR 3.0以下 混雙（HK$788/組）</option>
+                <option value="<%= d4 %>" data-fee-hkd="788" <%= values.division === d4 ? 'selected' : '' %>>30歲以上 DUPR 3.0+ 男雙（HK$788/組）</option>
+                <option value="<%= d5 %>" data-fee-hkd="788" <%= values.division === d5 ? 'selected' : '' %>>30歲以上 DUPR 3.0+ 女雙（HK$788/組）</option>
+                <option value="<%= d6 %>" data-fee-hkd="788" <%= values.division === d6 ? 'selected' : '' %>>30歲以上 DUPR 3.0+ 混雙（HK$788/組）</option>
               </optgroup>
 
               <optgroup label="── 50+ 組別（第 7–12 項）──">
@@ -130,21 +131,21 @@
                 <% const d10 = "10 - 50+ - 3.0+ - 男雙"; %>
                 <% const d11 = "11 - 50+ - 3.0+ - 女雙"; %>
                 <% const d12 = "12 - 50+ - 3.0+ - 混雙"; %>
-                <option value="<%= d7 %>" <%= values.division === d7 ? 'selected' : '' %>><%= d7 %></option>
-                <option value="<%= d8 %>" <%= values.division === d8 ? 'selected' : '' %>><%= d8 %></option>
-                <option value="<%= d9 %>" <%= values.division === d9 ? 'selected' : '' %>><%= d9 %></option>
-                <option value="<%= d10 %>" <%= values.division === d10 ? 'selected' : '' %>><%= d10 %></option>
-                <option value="<%= d11 %>" <%= values.division === d11 ? 'selected' : '' %>><%= d11 %></option>
-                <option value="<%= d12 %>" <%= values.division === d12 ? 'selected' : '' %>><%= d12 %></option>
+                <option value="<%= d7 %>" data-fee-hkd="788" <%= values.division === d7 ? 'selected' : '' %>>50歲以上 DUPR 3.0以下 男雙（HK$788/組）</option>
+                <option value="<%= d8 %>" data-fee-hkd="788" <%= values.division === d8 ? 'selected' : '' %>>50歲以上 DUPR 3.0以下 女雙（HK$788/組）</option>
+                <option value="<%= d9 %>" data-fee-hkd="788" <%= values.division === d9 ? 'selected' : '' %>>50歲以上 DUPR 3.0以下 混雙（HK$788/組）</option>
+                <option value="<%= d10 %>" data-fee-hkd="788" <%= values.division === d10 ? 'selected' : '' %>>50歲以上 DUPR 3.0+ 男雙（HK$788/組）</option>
+                <option value="<%= d11 %>" data-fee-hkd="788" <%= values.division === d11 ? 'selected' : '' %>>50歲以上 DUPR 3.0+ 女雙（HK$788/組）</option>
+                <option value="<%= d12 %>" data-fee-hkd="788" <%= values.division === d12 ? 'selected' : '' %>>50歲以上 DUPR 3.0+ 混雙（HK$788/組）</option>
               </optgroup>
 
               <optgroup label="── 公開組（第 13–15 項）──">
                 <% const d13 = "13 - 公開 - - 男雙公開"; %>
                 <% const d14 = "14 - 公開 - - 女雙公開"; %>
                 <% const d15 = "15 - 公開 - - 混雙公開"; %>
-                <option value="<%= d13 %>" <%= values.division === d13 ? 'selected' : '' %>><%= d13 %></option>
-                <option value="<%= d14 %>" <%= values.division === d14 ? 'selected' : '' %>><%= d14 %></option>
-                <option value="<%= d15 %>" <%= values.division === d15 ? 'selected' : '' %>><%= d15 %></option>
+                <option value="<%= d13 %>" data-fee-hkd="788" <%= values.division === d13 ? 'selected' : '' %>>公開組 男雙（HK$788/組）</option>
+                <option value="<%= d14 %>" data-fee-hkd="788" <%= values.division === d14 ? 'selected' : '' %>>公開組 女雙（HK$788/組）</option>
+                <option value="<%= d15 %>" data-fee-hkd="788" <%= values.division === d15 ? 'selected' : '' %>>公開組 混雙（HK$788/組）</option>
               </optgroup>
 
               <optgroup label="── 小朋友組（第 16–19 項）──">
@@ -152,10 +153,10 @@
                 <% const d17 = "17 - 小朋友 - U10 - -"; %>
                 <% const d18 = "18 - 小朋友 - U12 - -"; %>
                 <% const d19 = "19 - 小朋友 - U14 - -"; %>
-                <option value="<%= d16 %>" <%= values.division === d16 ? 'selected' : '' %>><%= d16 %></option>
-                <option value="<%= d17 %>" <%= values.division === d17 ? 'selected' : '' %>><%= d17 %></option>
-                <option value="<%= d18 %>" <%= values.division === d18 ? 'selected' : '' %>><%= d18 %></option>
-                <option value="<%= d19 %>" <%= values.division === d19 ? 'selected' : '' %>><%= d19 %></option>
+                <option value="<%= d16 %>" data-fee-hkd="688" <%= values.division === d16 ? 'selected' : '' %>>小朋友 U8（HK$688/組）</option>
+                <option value="<%= d17 %>" data-fee-hkd="688" <%= values.division === d17 ? 'selected' : '' %>>小朋友 U10（HK$688/組）</option>
+                <option value="<%= d18 %>" data-fee-hkd="688" <%= values.division === d18 ? 'selected' : '' %>>小朋友 U12（HK$688/組）</option>
+                <option value="<%= d19 %>" data-fee-hkd="688" <%= values.division === d19 ? 'selected' : '' %>>小朋友 U14（HK$688/組）</option>
               </optgroup>
             </select>
             <% if (errors.division) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.division %></div><% } %>
@@ -278,12 +279,41 @@
             ><%= values.notes || '' %></textarea>
           </div>
 
-          <button
-            class="mt-2 inline-flex items-center justify-center rounded-2xl bg-pickle-pink px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:brightness-95"
-            type="submit"
-          >
-            前往付款並提交
-          </button>
+          <div class="rounded-3xl bg-black/5 p-5">
+            <label class="flex items-start gap-3">
+              <input
+                id="consentAccepted"
+                type="checkbox"
+                name="consentAccepted"
+                class="mt-1 h-5 w-5 rounded border-black/20 text-pickle-teal focus:ring-pickle-teal/30"
+                <%= values.consentAccepted === 'on' ? 'checked' : '' %>
+                required
+              />
+              <span class="text-sm text-black/80">
+                我已閱讀並同意
+                <button
+                  type="button"
+                  id="openConsent"
+                  class="font-semibold text-pickle-teal underline underline-offset-2 hover:brightness-95"
+                >
+                  個人資料收集聲明
+                </button>
+                ，並同意主辦方按聲明收集及使用本人資料。
+              </span>
+            </label>
+            <% if (errors.consentAccepted) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.consentAccepted %></div><% } %>
+          </div>
+
+          <div class="relative">
+            <div id="submitDisabledOverlay" class="pointer-events-none absolute inset-0 hidden rounded-2xl bg-black/10"></div>
+            <button
+              id="submitBtn"
+              class="mt-2 inline-flex w-full items-center justify-center rounded-2xl bg-pickle-pink px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+              type="submit"
+            >
+              前往付款報名費 HK$<span id="feeText">—</span>
+            </button>
+          </div>
 
           <div class="text-xs text-black/50">
             提交後若已設定 Stripe，將轉往付款頁面。提交即表示你同意主辦方按需要聯絡你作賽事安排。
@@ -291,5 +321,234 @@
         </form>
       </div>
     </main>
+
+    <!-- Lightbox: 付款前再次核對 -->
+    <div id="confirmModal" class="fixed inset-0 z-50 hidden">
+      <div id="confirmBackdrop" class="absolute inset-0 bg-black/50"></div>
+      <div class="relative mx-auto flex h-full max-w-xl items-end p-4 sm:items-center">
+        <div class="w-full overflow-hidden rounded-3xl bg-white shadow-xl ring-1 ring-black/10">
+          <div class="flex items-center justify-between gap-4 border-b border-black/5 px-6 py-4">
+            <div class="text-sm font-extrabold text-pickle-ink">提交前確認</div>
+            <button id="closeConfirmX" type="button" class="rounded-xl px-3 py-2 text-sm font-bold text-black/60 hover:bg-black/5">
+              關閉
+            </button>
+          </div>
+          <div class="px-6 py-5 text-sm text-black/80">
+            <div class="rounded-2xl bg-black/5 p-4">
+              <div class="font-bold text-pickle-ink">請再三核對個人資料無誤</div>
+              <div class="mt-2 leading-relaxed">
+                如果核對後資料需要修改將收取 <span class="font-extrabold text-pickle-pink">HK$250</span> 行政費。
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-wrap justify-end gap-2 border-t border-black/5 px-6 py-4">
+            <button id="cancelConfirm" type="button" class="rounded-2xl bg-white px-4 py-2 text-sm font-extrabold text-pickle-ink ring-1 ring-black/10 hover:bg-black/5">
+              取消
+            </button>
+            <button id="acceptConfirm" type="button" class="rounded-2xl bg-pickle-pink px-4 py-2 text-sm font-extrabold text-white shadow-sm hover:brightness-95">
+              決定
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lightbox: 個人資料收集聲明 -->
+    <div id="consentModal" class="fixed inset-0 z-50 hidden">
+      <div id="consentBackdrop" class="absolute inset-0 bg-black/50"></div>
+      <div class="relative mx-auto flex h-full max-w-3xl items-end p-4 sm:items-center">
+        <div class="w-full overflow-hidden rounded-3xl bg-white shadow-xl ring-1 ring-black/10">
+          <div class="flex items-center justify-between gap-4 border-b border-black/5 px-6 py-4">
+            <div class="text-sm font-extrabold text-pickle-ink">個人資料收集聲明</div>
+            <button id="closeConsent" type="button" class="rounded-xl px-3 py-2 text-sm font-bold text-black/60 hover:bg-black/5">
+              關閉
+            </button>
+          </div>
+          <div class="max-h-[70vh] overflow-auto px-6 py-5 text-sm text-black/80">
+            <p class="leading-relaxed">
+              本機構承諾遵守香港特別行政區法例第486章《個人資料（私隱）條例》（下稱「條例」）的規定，以保障閣下個人資料的私隱。本聲明旨在告知閣下我們收集、使用、儲存及披露閣下個人資料的政策及實踐。
+            </p>
+
+            <div class="mt-5 space-y-5">
+              <section>
+                <div class="font-bold text-pickle-ink">1. 收集個人資料的目的</div>
+                <p class="mt-2">閣下所提供的個人資料將用於以下一個或多個目的：</p>
+                <ol class="mt-2 list-decimal space-y-1 pl-5">
+                  <li>處理閣下參與「<%= tournament.name %>」的報名申請及相關行政事宜。</li>
+                  <li>核實閣下的身份及參賽資格。</li>
+                  <li>在比賽期間及與比賽相關的活動中與閣下進行溝通及聯絡（例如：發送比賽通知、賽程、結果等）。</li>
+                  <li>管理及執行比賽規則，包括但不限於成績記錄、獎項頒發及處理任何投訴或查詢。</li>
+                  <li>為閣下提供比賽相關的服務及支援。</li>
+                  <li>進行統計分析、研究及內部審計，以評估及改善本機構的服務及活動。</li>
+                  <li>遵守任何適用於本機構的法律、法規、法庭命令或政府機構的要求。</li>
+                  <li>其他與比賽相關之合理及必要用途（例如：用於保險申請）。</li>
+                </ol>
+              </section>
+
+              <section>
+                <div class="font-bold text-pickle-ink">2. 收集的個人資料類別</div>
+                <p class="mt-2">本機構可能會收集閣下以下類別的個人資料：</p>
+                <ol class="mt-2 list-decimal space-y-1 pl-5">
+                  <li>身份資料：姓名、性別、出生日期。</li>
+                  <li>聯絡資料：電話號碼、電郵地址。</li>
+                  <li>比賽相關資料：參賽組別、匹克球水平／DUPR、所屬隊伍名稱（如適用）。</li>
+                  <li>付款資料：如涉及報名費，可能收集支付交易相關資料（但不包括完整的信用卡號碼等敏感信息）。</li>
+                </ol>
+                <p class="mt-2">
+                  閣下提供個人資料純屬自願。然而，若閣下未能提供本機構要求的所有必要資料，本機構可能無法處理閣下的報名申請或提供相關服務。
+                </p>
+              </section>
+
+              <section>
+                <div class="font-bold text-pickle-ink">3. 個人資料的披露及轉移</div>
+                <p class="mt-2">
+                  本機構將對閣下提供的個人資料保密。除非獲得閣下的事先同意或法律要求，本機構不會將閣下的個人資料出租、出售、轉移或披露予任何第三方，但以下情況除外：
+                </p>
+                <ol class="mt-2 list-decimal space-y-1 pl-5">
+                  <li>向為本機構提供行政、電訊、電腦、付款處理、保險、活動支援或其他服務的第三方服務供應商或承辦商披露，以協助本機構營運或提供服務。</li>
+                  <li>向與本機構共同舉辦或協辦本次比賽的合作夥伴或贊助商披露（僅限於與比賽相關的用途，並會要求其遵守保密責任）。</li>
+                  <li>向相關體育總會、監管機構或政府部門披露，以符合法規要求或進行身份核實。</li>
+                  <li>在有需要時，向本機構的專業顧問（如會計師、律師）披露。</li>
+                  <li>在法律要求或執法機關要求下披露。</li>
+                </ol>
+                <p class="mt-2">
+                  閣下的個人資料可能會被轉移至香港境外，前提是該等轉移符合條例的規定。
+                </p>
+              </section>
+
+              <section>
+                <div class="font-bold text-pickle-ink">4. 圖像及影像使用</div>
+                <p class="mt-2">
+                  請注意，在比賽及相關活動期間，本機構的代表或獲授權人士可能會進行攝影及錄影。所收集的圖像及影像（包括閣下的肖像）可能會用於本機構的內部記錄、宣傳、推廣、新聞發布、網站、社交媒體及其他刊物，以記錄及推廣匹克球運動。
+                </p>
+              </section>
+
+              <section>
+                <div class="font-bold text-pickle-ink">5. 個人資料的保安及保留</div>
+                <p class="mt-2">
+                  本機構將採取一切合理可行的措施，確保所收集的個人資料受到妥善保護，防止未經授權的查閱、處理、刪除或作其他用途。
+                  本機構將根據內部政策，在達到收集目的所需的時間內保留閣下的個人資料，此後將予以銷毀。
+                </p>
+              </section>
+
+              <section>
+                <div class="font-bold text-pickle-ink">6. 查閱及改正個人資料的權利</div>
+                <p class="mt-2">
+                  根據條例，閣下有權查閱本機構是否持有閣下的個人資料、查閱本機構持有的閣下個人資料的副本，以及要求改正本機構持有的任何不準確的個人資料。
+                  所有查閱及改正個人資料的要求應以書面形式提出，並發送至主辦方所提供之聯絡地址或電郵。本機構可能會就處理查閱資料的要求收取合理費用。
+                </p>
+              </section>
+            </div>
+          </div>
+          <div class="flex justify-end gap-2 border-t border-black/5 px-6 py-4">
+            <button id="closeConsent2" type="button" class="rounded-2xl bg-pickle-teal px-4 py-2 text-sm font-extrabold text-white hover:brightness-95">
+              我明白
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const form = document.querySelector('form[action=\"/apply\"]');
+        const checkbox = document.getElementById('consentAccepted');
+        const btn = document.getElementById('submitBtn');
+        const overlay = document.getElementById('submitDisabledOverlay');
+        const feeText = document.getElementById('feeText');
+        const divisionSelect = document.getElementById('divisionSelect');
+        let allowSubmit = false;
+
+        function syncSubmitState() {
+          const ok = checkbox && checkbox.checked;
+          if (btn) btn.disabled = !ok;
+          if (overlay) overlay.classList.toggle('hidden', !!ok);
+        }
+
+        function selectedFeeHKD() {
+          if (!divisionSelect) return null;
+          const opt = divisionSelect.options[divisionSelect.selectedIndex];
+          if (!opt) return null;
+          const v = opt.getAttribute('data-fee-hkd');
+          if (!v) return null;
+          const n = parseInt(v, 10);
+          return Number.isNaN(n) ? null : n;
+        }
+
+        function syncFee() {
+          const fee = selectedFeeHKD();
+          if (feeText) feeText.textContent = fee != null ? String(fee) : '—';
+        }
+
+        syncFee();
+        syncSubmitState();
+        if (checkbox) checkbox.addEventListener('change', syncSubmitState);
+        if (divisionSelect) divisionSelect.addEventListener('change', syncFee);
+
+        // 付款前再次核對彈窗
+        const confirmModal = document.getElementById('confirmModal');
+        const confirmBackdrop = document.getElementById('confirmBackdrop');
+        const closeConfirmX = document.getElementById('closeConfirmX');
+        const cancelConfirm = document.getElementById('cancelConfirm');
+        const acceptConfirm = document.getElementById('acceptConfirm');
+
+        function openConfirm() {
+          if (!confirmModal) return;
+          confirmModal.classList.remove('hidden');
+          document.body.style.overflow = 'hidden';
+        }
+        function closeConfirm() {
+          if (!confirmModal) return;
+          confirmModal.classList.add('hidden');
+          document.body.style.overflow = '';
+        }
+
+        if (form) {
+          form.addEventListener('submit', function (e) {
+            if (allowSubmit) return;
+            // 若未同意收集聲明，瀏覽器 required 會擋；這裡只處理「提交前確認」
+            e.preventDefault();
+            openConfirm();
+          });
+        }
+        if (acceptConfirm) {
+          acceptConfirm.addEventListener('click', function () {
+            allowSubmit = true;
+            closeConfirm();
+            if (form) form.submit();
+          });
+        }
+        if (cancelConfirm) cancelConfirm.addEventListener('click', closeConfirm);
+        if (closeConfirmX) closeConfirmX.addEventListener('click', closeConfirm);
+        if (confirmBackdrop) confirmBackdrop.addEventListener('click', closeConfirm);
+
+        const modal = document.getElementById('consentModal');
+        const openBtn = document.getElementById('openConsent');
+        const closeBtn = document.getElementById('closeConsent');
+        const closeBtn2 = document.getElementById('closeConsent2');
+        const backdrop = document.getElementById('consentBackdrop');
+
+        function open() {
+          if (!modal) return;
+          modal.classList.remove('hidden');
+          document.body.style.overflow = 'hidden';
+        }
+        function close() {
+          if (!modal) return;
+          modal.classList.add('hidden');
+          document.body.style.overflow = '';
+        }
+        if (openBtn) openBtn.addEventListener('click', open);
+        if (closeBtn) closeBtn.addEventListener('click', close);
+        if (closeBtn2) closeBtn2.addEventListener('click', close);
+        if (backdrop) backdrop.addEventListener('click', close);
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') {
+            close();
+            closeConfirm();
+          }
+        });
+      })();
+    </script>
   </body>
 </html>

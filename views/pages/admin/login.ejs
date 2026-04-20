@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-HK">
+  <head>
+    <%- include("../../partials/head", { title: "後台登入 - " + tournament.name, tournament }) %>
+    <style>
+      body { font-family: "Noto Sans TC", system-ui, -apple-system, sans-serif; }
+    </style>
+  </head>
+  <body>
+    <main class="mx-auto flex min-h-screen max-w-md items-center px-4 py-10">
+      <div class="w-full rounded-3xl bg-white p-7 ring-1 ring-black/5">
+        <div class="flex items-center gap-3">
+          <img
+            src="/images/picklevibes-logo.png"
+            alt="PickleVibes"
+            class="h-11 w-11 rounded-2xl bg-white object-contain ring-1 ring-black/5"
+          />
+          <div>
+            <div class="text-sm font-extrabold text-pickle-ink">後台登入</div>
+            <div class="text-xs text-black/60"><%= tournament.name %></div>
+          </div>
+        </div>
+
+        <% if (error) { %>
+          <div class="mt-5 rounded-2xl bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-100">
+            <%= error %>
+          </div>
+        <% } %>
+
+        <form method="post" action="/admin/login" class="mt-6 grid gap-4">
+          <input type="hidden" name="next" value="<%= next %>" />
+          <div>
+            <label class="text-sm font-semibold text-pickle-ink">帳號</label>
+            <input
+              name="username"
+              class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+              autocomplete="username"
+            />
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-pickle-ink">密碼</label>
+            <input
+              name="password"
+              type="password"
+              class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+              autocomplete="current-password"
+            />
+          </div>
+          <button
+            class="mt-1 inline-flex items-center justify-center rounded-2xl bg-pickle-pink px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:brightness-95"
+            type="submit"
+          >
+            登入
+          </button>
+          <div class="text-xs text-black/50">
+            帳號與密碼由伺服器 `.env` 設定。
+          </div>
+        </form>
+      </div>
+    </main>
+  </body>
+</html>
+

@@ -32,6 +32,9 @@ const RegistrationSchema = new mongoose.Schema(
     tournamentLocation: { type: String, required: true, trim: true },
     notes: { type: String, trim: true, maxlength: 500 },
 
+    consentAccepted: { type: Boolean, required: true, default: false },
+    consentAcceptedAt: { type: Date, default: null },
+
     paymentStatus: {
       type: String,
       enum: ["pending", "paid", "skipped"],

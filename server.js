@@ -1,6 +1,7 @@
 const path = require("path");
 const express = require("express");
 const mongoose = require("mongoose");
+const session = require("express-session");
 require("dotenv").config();
 
 const Registration = require("./models/Registration");
@@ -14,6 +15,9 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
+const SESSION_SECRET = process.env.SESSION_SECRET || "dev-session-secret";
+const ADMIN_USER = String(process.env.ADMIN_USER || "").trim();
+const ADMIN_PASS = String(process.env.ADMIN_PASS || "").trim();
 
 const TOURNAMENT = {
   name: process.env.TOURNAMENT_NAME || "PickleVibes 匹克球公開賽",
@@ -58,17 +62,102 @@ function stripeClient() {
   return require("stripe")(key);
 }
 
+function stripeWebhookSecret() {
+  return String(process.env.STRIPE_WEBHOOK_SECRET || "").trim();
+}
+
 function baseUrl(req) {
   const fromEnv = process.env.APP_BASE_URL;
   if (fromEnv) return String(fromEnv).replace(/\/$/, "");
   return `${req.protocol}://${req.get("host")}`;
 }
 
+function divisionNumber(division) {
+  const m = String(division || "").trim().match(/^(\d+)\s*-/);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  return Number.isNaN(n) ? null : n;
+}
+
+function registrationFeeCentsForDivision(division) {
+  const kidsCents = parseInt(process.env.REGISTRATION_FEE_KIDS_CENTS || "68800", 10);
+  const defaultCents = parseInt(process.env.REGISTRATION_FEE_DEFAULT_CENTS || "78800", 10);
+  const n = divisionNumber(division);
+  if (n != null && n >= 16) return kidsCents;
+  return defaultCents;
+}
+
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
+app.set("trust proxy", 1);
+
+app.use(
+  session({
+    name: "pv_admin",
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: "auto",
+      maxAge: 1000 * 60 * 60 * 8 // 8 小時
+    }
+  })
+);
+
+// Stripe Webhook：必須用 raw body 驗證簽名
+app.post("/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  const stripe = stripeClient();
+  const endpointSecret = stripeWebhookSecret();
+  if (!stripe || !endpointSecret) {
+    return res.status(500).send("Stripe webhook not configured");
+  }
+
+  const sig = req.headers["stripe-signature"];
+  if (!sig) return res.status(400).send("Missing stripe-signature");
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err) {
+    return res.status(400).send(`Webhook signature verification failed: ${err.message}`);
+  }
+
+  try {
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object;
+      if (session && session.payment_status === "paid") {
+        const rid =
+          (session.metadata && session.metadata.registrationId) ||
+          session.client_reference_id;
+        if (rid) {
+          await Registration.findByIdAndUpdate(rid, {
+            paymentStatus: "paid"
+          });
+        }
+      }
+    }
+
+    // 其他事件先 ACK（避免 Stripe 重試）
+    return res.json({ received: true });
+  } catch (e) {
+    return res.status(500).send("Webhook handler failed");
+  }
+});
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
+
+function requireAdmin(req, res, next) {
+  if (req.session && req.session.admin === true) return next();
+  return res.redirect(`/admin/login?next=${encodeURIComponent(req.originalUrl || "/admin")}`);
+}
+
+function adminConfigured() {
+  return Boolean(ADMIN_USER && ADMIN_PASS);
+}
 
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
@@ -92,6 +181,7 @@ function defaultApplyValues() {
     bocMemberCode: "",
     division: "",
     notes: "",
+    consentAccepted: "",
     player1Name: "",
     player1Dob: "",
     player1Gender: "",
@@ -143,6 +233,7 @@ app.post("/apply", async (req, res) => {
     bocMemberCode: String(req.body.bocMemberCode || "").trim(),
     division: String(req.body.division || "").trim(),
     notes: String(req.body.notes || "").trim(),
+    consentAccepted: String(req.body.consentAccepted || "").trim(),
     player1Name: String(req.body.player1Name || "").trim(),
     player1Dob: String(req.body.player1Dob || "").trim(),
     player1Gender: String(req.body.player1Gender || "").trim(),
@@ -159,6 +250,7 @@ app.post("/apply", async (req, res) => {
   if (values.email && !isValidEmail(values.email)) errors.email = "電郵格式不正確";
   if (!values.phone) errors.phone = "請填寫電話";
   if (!values.division) errors.division = "請選擇組別";
+  if (values.consentAccepted !== "on") errors.consentAccepted = "你必須同意個人資料收集聲明才可提交";
 
   if (!values.player1Name) errors.player1Name = "請填寫球員 1 姓名";
   if (!values.player2Name) errors.player2Name = "請填寫球員 2 姓名";
@@ -232,7 +324,7 @@ app.post("/apply", async (req, res) => {
   }
 
   const stripe = stripeClient();
-  const amountCents = parseInt(process.env.STRIPE_REGISTRATION_AMOUNT_CENTS || "0", 10);
+  const amountCents = registrationFeeCentsForDivision(values.division);
   const currency = (process.env.STRIPE_CURRENCY || "hkd").toLowerCase();
 
   try {
@@ -258,6 +350,8 @@ app.post("/apply", async (req, res) => {
       tournamentDate: TOURNAMENT.date,
       tournamentLocation: TOURNAMENT.location,
       notes: values.notes,
+      consentAccepted: true,
+      consentAcceptedAt: new Date(),
       paymentStatus: stripe ? "pending" : "skipped",
       stripeCheckoutSessionId: ""
     };
@@ -360,6 +454,100 @@ app.get("/success", async (req, res) => {
   const reg = rid ? await Registration.findById(rid).lean() : null;
 
   res.render("pages/success", { tournament: TOURNAMENT, reg });
+});
+
+// Admin: login/logout
+app.get("/admin/login", (req, res) => {
+  if (!adminConfigured()) {
+    return res.status(500).send("Admin credentials not configured");
+  }
+  if (req.session && req.session.admin === true) return res.redirect("/admin");
+  res.render("pages/admin/login", {
+    tournament: TOURNAMENT,
+    next: String(req.query.next || "/admin"),
+    error: ""
+  });
+});
+
+app.post("/admin/login", (req, res) => {
+  if (!adminConfigured()) {
+    return res.status(500).send("Admin credentials not configured");
+  }
+  const u = String(req.body.username || "").trim();
+  const p = String(req.body.password || "").trim();
+  const nextUrl = String(req.body.next || "/admin");
+  if (u === ADMIN_USER && p === ADMIN_PASS) {
+    req.session.admin = true;
+    return res.redirect(nextUrl);
+  }
+  return res.status(401).render("pages/admin/login", {
+    tournament: TOURNAMENT,
+    next: nextUrl,
+    error: "帳號或密碼錯誤"
+  });
+});
+
+app.post("/admin/logout", (req, res) => {
+  if (req.session) {
+    req.session.destroy(() => {
+      res.redirect("/admin/login");
+    });
+  } else {
+    res.redirect("/admin/login");
+  }
+});
+
+// Admin: list registrations
+app.get("/admin", requireAdmin, async (req, res) => {
+  const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+  const pageSize = 25;
+  const skip = (page - 1) * pageSize;
+  const [items, total] = await Promise.all([
+    Registration.find({})
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageSize)
+      .lean(),
+    Registration.countDocuments({})
+  ]);
+
+  res.render("pages/admin/registrations", {
+    tournament: TOURNAMENT,
+    items,
+    page,
+    pageSize,
+    total
+  });
+});
+
+// Admin: check Stripe payment status (live)
+app.get("/admin/registration/:id/payment-check", requireAdmin, async (req, res) => {
+  const stripe = stripeClient();
+  const id = String(req.params.id || "").trim();
+  const reg = id ? await Registration.findById(id).lean() : null;
+  if (!reg) return res.status(404).json({ ok: false, message: "not found" });
+  if (!stripe || !reg.stripeCheckoutSessionId) {
+    return res.json({
+      ok: true,
+      payment_status: reg.paymentStatus,
+      source: "db"
+    });
+  }
+  try {
+    const sessionObj = await stripe.checkout.sessions.retrieve(reg.stripeCheckoutSessionId);
+    const payment_status = sessionObj.payment_status || "unknown";
+    if (payment_status === "paid" && reg.paymentStatus !== "paid") {
+      await Registration.findByIdAndUpdate(id, { paymentStatus: "paid" });
+    }
+    return res.json({
+      ok: true,
+      payment_status,
+      source: "stripe",
+      session_id: reg.stripeCheckoutSessionId
+    });
+  } catch (e) {
+    return res.status(500).json({ ok: false, message: "stripe check failed" });
+  }
 });
 
 async function main() {
