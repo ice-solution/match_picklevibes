@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-HK">
+  <head>
+    <%- include("../partials/head", { title: "用戶登記 - " + tournament.name, tournament }) %>
+    <style>
+      body { font-family: "Noto Sans TC", system-ui, -apple-system, sans-serif; }
+    </style>
+  </head>
+  <body>
+    <%- include("../partials/nav", { tournament }) %>
+    <%- include("../partials/banner", { tournament }) %>
+
+    <main class="mx-auto max-w-3xl px-4 py-10">
+      <div class="rounded-3xl bg-white p-6 ring-1 ring-black/5 md:p-8">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-extrabold tracking-tight text-pickle-ink">用戶登記</h2>
+            <p class="mt-1 text-sm text-black/60">完成後可直接前往報名比賽。</p>
+          </div>
+          <a href="/apply" class="text-sm font-semibold text-pickle-teal hover:underline">去報名</a>
+        </div>
+
+        <% if (errors.form) { %>
+          <div class="mt-5 rounded-2xl bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-100">
+            <%= errors.form %>
+          </div>
+        <% } %>
+
+        <form method="post" action="/signup" class="mt-6 grid gap-4">
+          <div>
+            <label class="text-sm font-semibold text-pickle-ink">姓名</label>
+            <input
+              name="fullName"
+              value="<%= values.fullName || '' %>"
+              class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+              placeholder="例如：陳大文"
+              autocomplete="name"
+            />
+            <% if (errors.fullName) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.fullName %></div><% } %>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <div>
+              <label class="text-sm font-semibold text-pickle-ink">電郵</label>
+              <input
+                name="email"
+                value="<%= values.email || '' %>"
+                class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+                placeholder="name@example.com"
+                autocomplete="email"
+                inputmode="email"
+              />
+              <% if (errors.email) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.email %></div><% } %>
+            </div>
+
+            <div>
+              <label class="text-sm font-semibold text-pickle-ink">電話</label>
+              <input
+                name="phone"
+                value="<%= values.phone || '' %>"
+                class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+                placeholder="例如：9123 4567"
+                autocomplete="tel"
+                inputmode="tel"
+              />
+              <% if (errors.phone) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.phone %></div><% } %>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold text-pickle-ink">出生日期</label>
+            <input
+              type="date"
+              name="dateOfBirth"
+              value="<%= values.dateOfBirth || '' %>"
+              class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+            />
+            <% if (errors.dateOfBirth) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.dateOfBirth %></div><% } %>
+          </div>
+
+          <div class="rounded-3xl bg-pickle-mist p-5 ring-1 ring-black/5">
+            <div class="text-sm font-extrabold text-pickle-ink">緊急聯絡人</div>
+            <div class="mt-4 grid gap-4 md:grid-cols-2">
+              <div>
+                <label class="text-sm font-semibold text-pickle-ink">姓名</label>
+                <input
+                  name="emergencyName"
+                  value="<%= values.emergencyName || '' %>"
+                  class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+                />
+                <% if (errors.emergencyName) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.emergencyName %></div><% } %>
+              </div>
+              <div>
+                <label class="text-sm font-semibold text-pickle-ink">電話</label>
+                <input
+                  name="emergencyPhone"
+                  value="<%= values.emergencyPhone || '' %>"
+                  class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+                  autocomplete="tel"
+                  inputmode="tel"
+                />
+                <% if (errors.emergencyPhone) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.emergencyPhone %></div><% } %>
+              </div>
+            </div>
+          </div>
+
+          <button
+            class="mt-2 inline-flex items-center justify-center rounded-2xl bg-pickle-teal px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:brightness-95"
+            type="submit"
+          >
+            完成登記
+          </button>
+
+          <div class="text-xs text-black/50">
+            你提交的資料只用作比賽登記用途。
+          </div>
+        </form>
+      </div>
+    </main>
+  </body>
+</html>
+

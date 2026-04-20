@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="zh-HK">
+  <head>
+    <%- include("../partials/head", { title: "報名比賽 - " + tournament.name, tournament }) %>
+    <style>
+      body { font-family: "Noto Sans TC", system-ui, -apple-system, sans-serif; }
+    </style>
+  </head>
+  <body>
+    <%- include("../partials/nav", { tournament }) %>
+    <%- include("../partials/banner", { tournament }) %>
+
+    <main class="mx-auto max-w-3xl px-4 py-10">
+      <div class="rounded-3xl bg-white p-6 ring-1 ring-black/5 md:p-8">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-extrabold tracking-tight text-pickle-ink">比賽申請表</h2>
+            <p class="mt-1 text-sm text-black/60">填寫聯絡資料、兩位球員資料、組別，並完成付款（如已啟用 Stripe）。</p>
+            <% if (registrationDeadline) { %>
+              <p class="mt-2 text-xs font-semibold text-pickle-teal">
+                截止報名：<%= new Date(registrationDeadline).toLocaleString("zh-HK", { hour12: false }) %>
+              </p>
+            <% } %>
+          </div>
+          <a href="/" class="text-sm font-semibold text-pickle-teal hover:underline">返回首頁</a>
+        </div>
+
+        <% if (typeof cancelled !== 'undefined' && cancelled) { %>
+          <div class="mt-5 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-100">
+            你已取消付款。如需報名，請重新提交表格。
+          </div>
+        <% } %>
+
+        <% if (errors.form) { %>
+          <div class="mt-5 rounded-2xl bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-100">
+            <%= errors.form %>
+          </div>
+        <% } %>
+
+        <% if (errorList && errorList.length) { %>
+          <div class="mt-5 rounded-2xl bg-red-50 p-4 text-sm text-red-800 ring-1 ring-red-100">
+            <div class="font-bold">請修正以下資料：</div>
+            <ul class="mt-2 list-disc pl-5">
+              <% errorList.forEach(function (line) { %>
+                <li><%= line %></li>
+              <% }); %>
+            </ul>
+          </div>
+        <% } %>
+
+        <form method="post" action="/apply" class="mt-6 grid gap-4">
+          <div>
+            <label class="text-sm font-semibold text-pickle-ink">聯絡人姓名</label>
+            <input
+              name="fullName"
+              value="<%= values.fullName || '' %>"
+              class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+              placeholder="隊伍／報名聯絡人"
+              autocomplete="name"
+            />
+            <% if (errors.fullName) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.fullName %></div><% } %>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <div>
+              <label class="text-sm font-semibold text-pickle-ink">電郵</label>
+              <input
+                name="email"
+                value="<%= values.email || '' %>"
+                class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+                placeholder="name@example.com"
+                autocomplete="email"
+                inputmode="email"
+              />
+              <% if (errors.email) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.email %></div><% } %>
+            </div>
+
+            <div>
+              <label class="text-sm font-semibold text-pickle-ink">電話</label>
+              <input
+                name="phone"
+                value="<%= values.phone || '' %>"
+                class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+                placeholder="例如：9123 4567"
+                autocomplete="tel"
+                inputmode="tel"
+              />
+              <% if (errors.phone) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.phone %></div><% } %>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold text-pickle-ink">BOC 會員代碼（可選）</label>
+            <input
+              name="bocMemberCode"
+              value="<%= values.bocMemberCode || '' %>"
+              class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+              placeholder="日後用途"
+              autocomplete="off"
+            />
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold text-pickle-ink">組別</label>
+            <select
+              name="division"
+              class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+            >
+              <option value="">請選擇</option>
+
+              <optgroup label="── 30+ 組別（第 1–6 項）──">
+                <% const d1 = "1 - 30+ - 3.0- - 男雙"; %>
+                <% const d2 = "2 - 30+ - 3.0- - 女雙"; %>
+                <% const d3 = "3 - 30+ - 3.0- - 混雙"; %>
+                <% const d4 = "4 - 30+ - 3.0+ - 男雙"; %>
+                <% const d5 = "5 - 30+ - 3.0+ - 女雙"; %>
+                <% const d6 = "6 - 30+ - 3.0+ - 混雙"; %>
+                <option value="<%= d1 %>" <%= values.division === d1 ? 'selected' : '' %>><%= d1 %></option>
+                <option value="<%= d2 %>" <%= values.division === d2 ? 'selected' : '' %>><%= d2 %></option>
+                <option value="<%= d3 %>" <%= values.division === d3 ? 'selected' : '' %>><%= d3 %></option>
+                <option value="<%= d4 %>" <%= values.division === d4 ? 'selected' : '' %>><%= d4 %></option>
+                <option value="<%= d5 %>" <%= values.division === d5 ? 'selected' : '' %>><%= d5 %></option>
+                <option value="<%= d6 %>" <%= values.division === d6 ? 'selected' : '' %>><%= d6 %></option>
+              </optgroup>
+
+              <optgroup label="── 50+ 組別（第 7–12 項）──">
+                <% const d7 = "7 - 50+ - 3.0- - 男雙"; %>
+                <% const d8 = "8 - 50+ - 3.0- - 女雙"; %>
+                <% const d9 = "9 - 50+ - 3.0- - 混雙"; %>
+                <% const d10 = "10 - 50+ - 3.0+ - 男雙"; %>
+                <% const d11 = "11 - 50+ - 3.0+ - 女雙"; %>
+                <% const d12 = "12 - 50+ - 3.0+ - 混雙"; %>
+                <option value="<%= d7 %>" <%= values.division === d7 ? 'selected' : '' %>><%= d7 %></option>
+                <option value="<%= d8 %>" <%= values.division === d8 ? 'selected' : '' %>><%= d8 %></option>
+                <option value="<%= d9 %>" <%= values.division === d9 ? 'selected' : '' %>><%= d9 %></option>
+                <option value="<%= d10 %>" <%= values.division === d10 ? 'selected' : '' %>><%= d10 %></option>
+                <option value="<%= d11 %>" <%= values.division === d11 ? 'selected' : '' %>><%= d11 %></option>
+                <option value="<%= d12 %>" <%= values.division === d12 ? 'selected' : '' %>><%= d12 %></option>
+              </optgroup>
+
+              <optgroup label="── 公開組（第 13–15 項）──">
+                <% const d13 = "13 - 公開 - - 男雙公開"; %>
+                <% const d14 = "14 - 公開 - - 女雙公開"; %>
+                <% const d15 = "15 - 公開 - - 混雙公開"; %>
+                <option value="<%= d13 %>" <%= values.division === d13 ? 'selected' : '' %>><%= d13 %></option>
+                <option value="<%= d14 %>" <%= values.division === d14 ? 'selected' : '' %>><%= d14 %></option>
+                <option value="<%= d15 %>" <%= values.division === d15 ? 'selected' : '' %>><%= d15 %></option>
+              </optgroup>
+
+              <optgroup label="── 小朋友組（第 16–19 項）──">
+                <% const d16 = "16 - 小朋友 - U8 - -"; %>
+                <% const d17 = "17 - 小朋友 - U10 - -"; %>
+                <% const d18 = "18 - 小朋友 - U12 - -"; %>
+                <% const d19 = "19 - 小朋友 - U14 - -"; %>
+                <option value="<%= d16 %>" <%= values.division === d16 ? 'selected' : '' %>><%= d16 %></option>
+                <option value="<%= d17 %>" <%= values.division === d17 ? 'selected' : '' %>><%= d17 %></option>
+                <option value="<%= d18 %>" <%= values.division === d18 ? 'selected' : '' %>><%= d18 %></option>
+                <option value="<%= d19 %>" <%= values.division === d19 ? 'selected' : '' %>><%= d19 %></option>
+              </optgroup>
+            </select>
+            <% if (errors.division) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.division %></div><% } %>
+            <p class="mt-2 text-xs text-black/50">DUPR 有效範圍 2.50–4.00（小數點後 2 位）。系統會按組別核對年齡、DUPR 與性別。</p>
+          </div>
+
+          <div class="rounded-3xl bg-pickle-mist p-5 ring-1 ring-black/5">
+            <div class="text-sm font-extrabold text-pickle-ink">球員 1</div>
+            <div class="mt-4 grid gap-4">
+              <div>
+                <label class="text-sm font-semibold text-pickle-ink">姓名</label>
+                <input
+                  name="player1Name"
+                  value="<%= values.player1Name || '' %>"
+                  class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+                />
+                <% if (errors.player1Name) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.player1Name %></div><% } %>
+              </div>
+              <div class="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label class="text-sm font-semibold text-pickle-ink">出生日期</label>
+                  <input
+                    type="date"
+                    name="player1Dob"
+                    value="<%= values.player1Dob || '' %>"
+                    class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+                  />
+                  <% if (errors.player1Dob) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.player1Dob %></div><% } %>
+                </div>
+                <div>
+                  <label class="text-sm font-semibold text-pickle-ink">性別</label>
+                  <select
+                    name="player1Gender"
+                    class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+                  >
+                    <option value="">請選擇</option>
+                    <option value="male" <%= values.player1Gender === 'male' ? 'selected' : '' %>>男</option>
+                    <option value="female" <%= values.player1Gender === 'female' ? 'selected' : '' %>>女</option>
+                  </select>
+                  <% if (errors.player1Gender) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.player1Gender %></div><% } %>
+                </div>
+              </div>
+              <div>
+                <label class="text-sm font-semibold text-pickle-ink">DUPR（2.50 – 4.00）</label>
+                <input
+                  name="player1Dupr"
+                  value="<%= values.player1Dupr || '' %>"
+                  inputmode="decimal"
+                  step="0.01"
+                  min="2.5"
+                  max="4"
+                  class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+                  placeholder="例如：3.25"
+                />
+                <% if (errors.player1Dupr) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.player1Dupr %></div><% } %>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-3xl bg-pickle-mist p-5 ring-1 ring-black/5">
+            <div class="text-sm font-extrabold text-pickle-ink">球員 2</div>
+            <div class="mt-4 grid gap-4">
+              <div>
+                <label class="text-sm font-semibold text-pickle-ink">姓名</label>
+                <input
+                  name="player2Name"
+                  value="<%= values.player2Name || '' %>"
+                  class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+                />
+                <% if (errors.player2Name) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.player2Name %></div><% } %>
+              </div>
+              <div class="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label class="text-sm font-semibold text-pickle-ink">出生日期</label>
+                  <input
+                    type="date"
+                    name="player2Dob"
+                    value="<%= values.player2Dob || '' %>"
+                    class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+                  />
+                  <% if (errors.player2Dob) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.player2Dob %></div><% } %>
+                </div>
+                <div>
+                  <label class="text-sm font-semibold text-pickle-ink">性別</label>
+                  <select
+                    name="player2Gender"
+                    class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+                  >
+                    <option value="">請選擇</option>
+                    <option value="male" <%= values.player2Gender === 'male' ? 'selected' : '' %>>男</option>
+                    <option value="female" <%= values.player2Gender === 'female' ? 'selected' : '' %>>女</option>
+                  </select>
+                  <% if (errors.player2Gender) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.player2Gender %></div><% } %>
+                </div>
+              </div>
+              <div>
+                <label class="text-sm font-semibold text-pickle-ink">DUPR（2.50 – 4.00）</label>
+                <input
+                  name="player2Dupr"
+                  value="<%= values.player2Dupr || '' %>"
+                  inputmode="decimal"
+                  step="0.01"
+                  min="2.5"
+                  max="4"
+                  class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+                  placeholder="例如：3.25"
+                />
+                <% if (errors.player2Dupr) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.player2Dupr %></div><% } %>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold text-pickle-ink">備註（可選）</label>
+            <textarea
+              name="notes"
+              rows="4"
+              class="mt-2 w-full resize-none rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+              placeholder="例如：配對需要、聯絡時間等"
+            ><%= values.notes || '' %></textarea>
+          </div>
+
+          <button
+            class="mt-2 inline-flex items-center justify-center rounded-2xl bg-pickle-pink px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:brightness-95"
+            type="submit"
+          >
+            前往付款並提交
+          </button>
+
+          <div class="text-xs text-black/50">
+            提交後若已設定 Stripe，將轉往付款頁面。提交即表示你同意主辦方按需要聯絡你作賽事安排。
+          </div>
+        </form>
+      </div>
+    </main>
+  </body>
+</html>

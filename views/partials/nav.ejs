@@ -1,0 +1,27 @@
+<header class="sticky top-0 z-40 border-b border-black/5 bg-white/70 backdrop-blur">
+  <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+    <a href="/" class="flex items-center gap-3">
+      <img
+        src="/images/picklevibes-logo.png"
+        alt="PickleVibes"
+        class="h-10 w-10 rounded-full bg-white object-contain ring-1 ring-black/5"
+      />
+      <div class="leading-tight">
+        <div class="font-[Montserrat] text-lg font-extrabold tracking-wide text-pickle-ink">
+          PickleVibes
+        </div>
+        <div class="text-xs text-black/60"><%= tournament.date %> · <%= tournament.location %></div>
+      </div>
+    </a>
+
+    <nav class="flex items-center gap-2">
+      <a
+        href="/apply"
+        class="rounded-xl bg-pickle-pink px-4 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-95"
+      >
+        報名比賽
+      </a>
+    </nav>
+  </div>
+</header>
+

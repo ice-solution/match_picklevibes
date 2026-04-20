@@ -1,0 +1,13 @@
+@config "../tailwind.config.js";
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-pickle-mist text-pickle-ink antialiased;
+  }
+}
+
