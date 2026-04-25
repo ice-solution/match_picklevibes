@@ -5,7 +5,7 @@ const PlayerSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true, maxlength: 120 },
     dateOfBirth: { type: Date, required: true },
     gender: { type: String, required: true, enum: ["male", "female"] },
-    dupr: { type: Number, required: true, min: 2.5, max: 4 }
+    dupr: { type: Number, required: true, min: 1, max: 4 }
   },
   { _id: false }
 );
@@ -21,7 +21,8 @@ const RegistrationSchema = new mongoose.Schema(
       maxlength: 254
     },
     phone: { type: String, required: true, trim: true, maxlength: 30 },
-    bocMemberCode: { type: String, trim: true, maxlength: 64, default: "" },
+    bocReferralCode: { type: String, required: true, trim: true, maxlength: 64 },
+    referrerPhone: { type: String, required: true, trim: true, maxlength: 30 },
 
     player1: { type: PlayerSchema, required: true },
     player2: { type: PlayerSchema, required: true },
@@ -35,12 +36,8 @@ const RegistrationSchema = new mongoose.Schema(
     consentAccepted: { type: Boolean, required: true, default: false },
     consentAcceptedAt: { type: Date, default: null },
 
-    paymentStatus: {
-      type: String,
-      enum: ["pending", "paid", "skipped"],
-      default: "pending"
-    },
-    stripeCheckoutSessionId: { type: String, trim: true, default: "" }
+    emailSentAt: { type: Date, default: null },
+    emailSendError: { type: String, default: "" }
   },
   { timestamps: true }
 );

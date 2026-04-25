@@ -15,21 +15,20 @@
         <div class="flex items-start justify-between gap-4">
           <div>
             <h2 class="text-xl font-extrabold tracking-tight text-pickle-ink">比賽申請表</h2>
-            <p class="mt-1 text-sm text-black/60">填寫聯絡資料、兩位球員資料、組別，並完成付款（如已啟用 Stripe）。</p>
+            <p class="mt-1 text-sm text-black/60">填寫聯絡資料、兩位球員資料及組別，提交後我們會以電郵確認，稍後再通知抽籤結果及付款連結。</p>
             <% if (registrationDeadline) { %>
               <p class="mt-2 text-xs font-semibold text-pickle-teal">
                 截止報名：<%= new Date(registrationDeadline).toLocaleString("zh-HK", { hour12: false }) %>
               </p>
             <% } %>
           </div>
-          <a href="/" class="text-sm font-semibold text-pickle-teal hover:underline">返回首頁</a>
+          <a
+            href="/"
+            class="inline-flex whitespace-nowrap rounded-xl bg-pickle-mist px-3 py-2 text-sm font-extrabold text-pickle-ink ring-1 ring-black/5 hover:bg-black/5"
+          >
+            返回首頁
+          </a>
         </div>
-
-        <% if (typeof cancelled !== 'undefined' && cancelled) { %>
-          <div class="mt-5 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-100">
-            你已取消付款。如需報名，請重新提交表格。
-          </div>
-        <% } %>
 
         <% if (errors.form) { %>
           <div class="mt-5 rounded-2xl bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-100">
@@ -90,14 +89,30 @@
           </div>
 
           <div>
-            <label class="text-sm font-semibold text-pickle-ink">BOC 會員代碼（可選）</label>
+            <label class="text-sm font-semibold text-pickle-ink">BOC 推薦碼</label>
             <input
-              name="bocMemberCode"
-              value="<%= values.bocMemberCode || '' %>"
+              name="bocReferralCode"
+              value="<%= values.bocReferralCode || '' %>"
               class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
-              placeholder="日後用途"
+              placeholder="例如：ABC123"
               autocomplete="off"
+              required
             />
+            <% if (errors.bocReferralCode) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.bocReferralCode %></div><% } %>
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold text-pickle-ink">推薦人電話號碼</label>
+            <input
+              name="referrerPhone"
+              value="<%= values.referrerPhone || '' %>"
+              class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+              placeholder="例如：9123 4567"
+              autocomplete="tel"
+              inputmode="tel"
+              required
+            />
+            <% if (errors.referrerPhone) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.referrerPhone %></div><% } %>
           </div>
 
           <div>
@@ -160,7 +175,7 @@
               </optgroup>
             </select>
             <% if (errors.division) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.division %></div><% } %>
-            <p class="mt-2 text-xs text-black/50">DUPR 有效範圍 2.50–4.00（小數點後 2 位）。系統會按組別核對年齡、DUPR 與性別。</p>
+            <p class="mt-2 text-xs text-black/50">DUPR 有效範圍 1.00–4.00（小數點後 2 位）。系統會按組別核對年齡、DUPR 與性別。</p>
           </div>
 
           <div class="rounded-3xl bg-pickle-mist p-5 ring-1 ring-black/5">
@@ -200,13 +215,13 @@
                 </div>
               </div>
               <div>
-                <label class="text-sm font-semibold text-pickle-ink">DUPR（2.50 – 4.00）</label>
+                <label class="text-sm font-semibold text-pickle-ink">DUPR（1.00 – 4.00）</label>
                 <input
                   name="player1Dupr"
                   value="<%= values.player1Dupr || '' %>"
                   inputmode="decimal"
                   step="0.01"
-                  min="2.5"
+                  min="1"
                   max="4"
                   class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
                   placeholder="例如：3.25"
@@ -253,13 +268,13 @@
                 </div>
               </div>
               <div>
-                <label class="text-sm font-semibold text-pickle-ink">DUPR（2.50 – 4.00）</label>
+                <label class="text-sm font-semibold text-pickle-ink">DUPR（1.00 – 4.00）</label>
                 <input
                   name="player2Dupr"
                   value="<%= values.player2Dupr || '' %>"
                   inputmode="decimal"
                   step="0.01"
-                  min="2.5"
+                  min="1"
                   max="4"
                   class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
                   placeholder="例如：3.25"
@@ -311,12 +326,12 @@
               class="mt-2 inline-flex w-full items-center justify-center rounded-2xl bg-pickle-pink px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
               type="submit"
             >
-              前往付款報名費 HK$<span id="feeText">—</span>
+              確認資料並提交
             </button>
           </div>
 
           <div class="text-xs text-black/50">
-            提交後若已設定 Stripe，將轉往付款頁面。提交即表示你同意主辦方按需要聯絡你作賽事安排。
+            提交後我們會以電郵確認，稍後再通知抽籤結果和付款連結。提交即表示你同意主辦方按需要聯絡你作賽事安排。
           </div>
         </form>
       </div>
@@ -455,7 +470,6 @@
         const checkbox = document.getElementById('consentAccepted');
         const btn = document.getElementById('submitBtn');
         const overlay = document.getElementById('submitDisabledOverlay');
-        const feeText = document.getElementById('feeText');
         const divisionSelect = document.getElementById('divisionSelect');
         let allowSubmit = false;
 
@@ -465,25 +479,9 @@
           if (overlay) overlay.classList.toggle('hidden', !!ok);
         }
 
-        function selectedFeeHKD() {
-          if (!divisionSelect) return null;
-          const opt = divisionSelect.options[divisionSelect.selectedIndex];
-          if (!opt) return null;
-          const v = opt.getAttribute('data-fee-hkd');
-          if (!v) return null;
-          const n = parseInt(v, 10);
-          return Number.isNaN(n) ? null : n;
-        }
-
-        function syncFee() {
-          const fee = selectedFeeHKD();
-          if (feeText) feeText.textContent = fee != null ? String(fee) : '—';
-        }
-
-        syncFee();
         syncSubmitState();
         if (checkbox) checkbox.addEventListener('change', syncSubmitState);
-        if (divisionSelect) divisionSelect.addEventListener('change', syncFee);
+        // divisionSelect 保留以供未來擴充
 
         // 付款前再次核對彈窗
         const confirmModal = document.getElementById('confirmModal');

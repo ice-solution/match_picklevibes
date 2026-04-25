@@ -3,8 +3,10 @@ const express = require("express");
 const mongoose = require("mongoose");
 const session = require("express-session");
 require("dotenv").config();
+const XLSX = require("xlsx");
 
 const Registration = require("./models/Registration");
+const { sendRegistrationEmail } = require("./lib/email");
 const {
   GENDER,
   parseDuprInput,
@@ -72,20 +74,7 @@ function baseUrl(req) {
   return `${req.protocol}://${req.get("host")}`;
 }
 
-function divisionNumber(division) {
-  const m = String(division || "").trim().match(/^(\d+)\s*-/);
-  if (!m) return null;
-  const n = parseInt(m[1], 10);
-  return Number.isNaN(n) ? null : n;
-}
-
-function registrationFeeCentsForDivision(division) {
-  const kidsCents = parseInt(process.env.REGISTRATION_FEE_KIDS_CENTS || "68800", 10);
-  const defaultCents = parseInt(process.env.REGISTRATION_FEE_DEFAULT_CENTS || "78800", 10);
-  const n = divisionNumber(division);
-  if (n != null && n >= 16) return kidsCents;
-  return defaultCents;
-}
+// Stripe 已停用（保留 env 可能仍存在，但流程不再使用）
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
@@ -108,44 +97,7 @@ app.use(
 );
 
 // Stripe Webhook：必須用 raw body 驗證簽名
-app.post("/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
-  const stripe = stripeClient();
-  const endpointSecret = stripeWebhookSecret();
-  if (!stripe || !endpointSecret) {
-    return res.status(500).send("Stripe webhook not configured");
-  }
-
-  const sig = req.headers["stripe-signature"];
-  if (!sig) return res.status(400).send("Missing stripe-signature");
-
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-  } catch (err) {
-    return res.status(400).send(`Webhook signature verification failed: ${err.message}`);
-  }
-
-  try {
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object;
-      if (session && session.payment_status === "paid") {
-        const rid =
-          (session.metadata && session.metadata.registrationId) ||
-          session.client_reference_id;
-        if (rid) {
-          await Registration.findByIdAndUpdate(rid, {
-            paymentStatus: "paid"
-          });
-        }
-      }
-    }
-
-    // 其他事件先 ACK（避免 Stripe 重試）
-    return res.json({ received: true });
-  } catch (e) {
-    return res.status(500).send("Webhook handler failed");
-  }
-});
+// Stripe webhook 已停用
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
@@ -178,7 +130,8 @@ function defaultApplyValues() {
     fullName: "",
     email: "",
     phone: "",
-    bocMemberCode: "",
+    bocReferralCode: "",
+    referrerPhone: "",
     division: "",
     notes: "",
     consentAccepted: "",
@@ -214,7 +167,7 @@ app.get("/apply", (req, res) => {
     values: defaultApplyValues(),
     errors: {},
     errorList: [],
-    cancelled: String(req.query.cancelled || "") === "1"
+    cancelled: false
   });
 });
 
@@ -230,7 +183,8 @@ app.post("/apply", async (req, res) => {
     fullName: String(req.body.fullName || "").trim(),
     email: normalizeEmail(req.body.email),
     phone: String(req.body.phone || "").trim(),
-    bocMemberCode: String(req.body.bocMemberCode || "").trim(),
+    bocReferralCode: String(req.body.bocReferralCode || "").trim(),
+    referrerPhone: String(req.body.referrerPhone || "").trim(),
     division: String(req.body.division || "").trim(),
     notes: String(req.body.notes || "").trim(),
     consentAccepted: String(req.body.consentAccepted || "").trim(),
@@ -249,6 +203,8 @@ app.post("/apply", async (req, res) => {
   if (!values.email) errors.email = "請填寫電郵";
   if (values.email && !isValidEmail(values.email)) errors.email = "電郵格式不正確";
   if (!values.phone) errors.phone = "請填寫電話";
+  if (!values.bocReferralCode) errors.bocReferralCode = "請填寫 BOC 推薦碼";
+  if (!values.referrerPhone) errors.referrerPhone = "請填寫 推薦人電話號碼";
   if (!values.division) errors.division = "請選擇組別";
   if (values.consentAccepted !== "on") errors.consentAccepted = "你必須同意個人資料收集聲明才可提交";
 
@@ -323,16 +279,13 @@ app.post("/apply", async (req, res) => {
     });
   }
 
-  const stripe = stripeClient();
-  const amountCents = registrationFeeCentsForDivision(values.division);
-  const currency = (process.env.STRIPE_CURRENCY || "hkd").toLowerCase();
-
   try {
     const doc = {
       fullName: values.fullName,
       email: values.email,
       phone: values.phone,
-      bocMemberCode: values.bocMemberCode,
+      bocReferralCode: values.bocReferralCode,
+      referrerPhone: values.referrerPhone,
       player1: {
         name: values.player1Name,
         dateOfBirth: p1dob,
@@ -351,54 +304,29 @@ app.post("/apply", async (req, res) => {
       tournamentLocation: TOURNAMENT.location,
       notes: values.notes,
       consentAccepted: true,
-      consentAcceptedAt: new Date(),
-      paymentStatus: stripe ? "pending" : "skipped",
-      stripeCheckoutSessionId: ""
+      consentAcceptedAt: new Date()
     };
 
     const created = await Registration.create(doc);
 
-    if (!stripe) {
-      return res.redirect(`/success?rid=${created._id.toString()}`);
-    }
-
-    if (!amountCents || amountCents < 1) {
-      await Registration.findByIdAndUpdate(created._id, { paymentStatus: "skipped" });
-      return res.redirect(`/success?rid=${created._id.toString()}`);
-    }
-
     try {
-      const session = await stripe.checkout.sessions.create({
-        mode: "payment",
-        client_reference_id: created._id.toString(),
-        metadata: { registrationId: created._id.toString() },
-        success_url: `${baseUrl(req)}/apply/complete?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl(req)}/apply?cancelled=1`,
-        line_items: [
-          {
-            quantity: 1,
-            price_data: {
-              currency,
-              unit_amount: amountCents,
-              product_data: {
-                name: `${TOURNAMENT.name} — 報名費`,
-                description: values.division.slice(0, 120)
-              }
-            }
-          }
-        ]
-      });
-
+      await sendRegistrationEmail({ tournament: TOURNAMENT, reg: created.toObject() });
       await Registration.findByIdAndUpdate(created._id, {
-        stripeCheckoutSessionId: session.id
+        emailSentAt: new Date(),
+        emailSendError: ""
       });
-
-      return res.redirect(303, session.url);
-    } catch (stripeErr) {
-      await Registration.deleteOne({ _id: created._id });
-      throw stripeErr;
+    } catch (emailErr) {
+      await Registration.findByIdAndUpdate(created._id, {
+        emailSentAt: null,
+        emailSendError: String(emailErr && emailErr.message ? emailErr.message : emailErr || "email send failed")
+      });
+      // 電郵失敗不阻斷報名流程，改為成功頁提示用戶保留頁面
     }
+
+    return res.redirect(`/success?rid=${created._id.toString()}`);
   } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("apply submit failed:", err);
     const message =
       err && err.code === 11000
         ? "你已經用同一電郵報名過此組別"
@@ -408,41 +336,6 @@ app.post("/apply", async (req, res) => {
       registrationDeadline: getRegistrationDeadline(),
       values,
       errors: { form: message },
-      errorList: [],
-      cancelled: false
-    });
-  }
-});
-
-app.get("/apply/complete", async (req, res) => {
-  const sessionId = String(req.query.session_id || "").trim();
-  const stripe = stripeClient();
-  if (!stripe || !sessionId) {
-    return res.redirect("/apply");
-  }
-  try {
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-    const rid =
-      (session.metadata && session.metadata.registrationId) ||
-      session.client_reference_id;
-    if (!rid || session.payment_status !== "paid") {
-      return res.status(400).render("pages/apply", {
-        tournament: TOURNAMENT,
-        registrationDeadline: getRegistrationDeadline(),
-        values: defaultApplyValues(),
-        errors: { form: "付款未完成或工作階段無效，請重新提交報名。" },
-        errorList: [],
-        cancelled: false
-      });
-    }
-    await Registration.findByIdAndUpdate(rid, { paymentStatus: "paid" });
-    return res.redirect(`/success?rid=${encodeURIComponent(rid)}`);
-  } catch (e) {
-    return res.status(500).render("pages/apply", {
-      tournament: TOURNAMENT,
-      registrationDeadline: getRegistrationDeadline(),
-      values: defaultApplyValues(),
-      errors: { form: "無法確認付款狀態，請聯絡主辦方。" },
       errorList: [],
       cancelled: false
     });
@@ -520,34 +413,60 @@ app.get("/admin", requireAdmin, async (req, res) => {
   });
 });
 
-// Admin: check Stripe payment status (live)
-app.get("/admin/registration/:id/payment-check", requireAdmin, async (req, res) => {
-  const stripe = stripeClient();
+// Admin: registration detail
+app.get("/admin/registration/:id", requireAdmin, async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const reg = id ? await Registration.findById(id).lean() : null;
+  res.render("pages/admin/registration_detail", { tournament: TOURNAMENT, reg });
+});
+
+// Admin: check email sending status
+app.get("/admin/registration/:id/email-check", requireAdmin, async (req, res) => {
   const id = String(req.params.id || "").trim();
   const reg = id ? await Registration.findById(id).lean() : null;
   if (!reg) return res.status(404).json({ ok: false, message: "not found" });
-  if (!stripe || !reg.stripeCheckoutSessionId) {
-    return res.json({
-      ok: true,
-      payment_status: reg.paymentStatus,
-      source: "db"
-    });
-  }
-  try {
-    const sessionObj = await stripe.checkout.sessions.retrieve(reg.stripeCheckoutSessionId);
-    const payment_status = sessionObj.payment_status || "unknown";
-    if (payment_status === "paid" && reg.paymentStatus !== "paid") {
-      await Registration.findByIdAndUpdate(id, { paymentStatus: "paid" });
-    }
-    return res.json({
-      ok: true,
-      payment_status,
-      source: "stripe",
-      session_id: reg.stripeCheckoutSessionId
-    });
-  } catch (e) {
-    return res.status(500).json({ ok: false, message: "stripe check failed" });
-  }
+  return res.json({
+    ok: true,
+    emailSentAt: reg.emailSentAt || null,
+    emailSendError: reg.emailSendError || ""
+  });
+});
+
+// Admin: export registrations to XLSX
+app.get("/admin/export.xlsx", requireAdmin, async (req, res) => {
+  const rows = await Registration.find({}).sort({ createdAt: -1 }).lean();
+
+  const out = rows.map((r) => ({
+    提交時間: r.createdAt ? new Date(r.createdAt).toLocaleString("zh-HK", { hour12: false }) : "",
+    聯絡人姓名: r.fullName || "",
+    電郵: r.email || "",
+    電話: r.phone || "",
+    BOC推薦碼: r.bocReferralCode || "",
+    推薦人電話: r.referrerPhone || "",
+    組別: r.division || "",
+    球員1姓名: r.player1?.name || "",
+    球員1出生日期: r.player1?.dateOfBirth ? new Date(r.player1.dateOfBirth).toISOString().slice(0, 10) : "",
+    球員1性別: r.player1?.gender === "male" ? "男" : (r.player1?.gender === "female" ? "女" : ""),
+    球員1DUPR: r.player1?.dupr != null ? Number(r.player1.dupr).toFixed(2) : "",
+    球員2姓名: r.player2?.name || "",
+    球員2出生日期: r.player2?.dateOfBirth ? new Date(r.player2.dateOfBirth).toISOString().slice(0, 10) : "",
+    球員2性別: r.player2?.gender === "male" ? "男" : (r.player2?.gender === "female" ? "女" : ""),
+    球員2DUPR: r.player2?.dupr != null ? Number(r.player2.dupr).toFixed(2) : "",
+    備註: r.notes || "",
+    電郵通知狀態: r.emailSentAt ? "已發送" : (r.emailSendError ? "發送失敗" : "待發送"),
+    電郵發送時間: r.emailSentAt ? new Date(r.emailSentAt).toLocaleString("zh-HK", { hour12: false }) : "",
+    電郵錯誤: r.emailSendError || ""
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(out);
+  XLSX.utils.book_append_sheet(wb, ws, "Registrations");
+
+  const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+  const filename = `picklevibes_registrations_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
+  return res.send(buf);
 });
 
 async function main() {

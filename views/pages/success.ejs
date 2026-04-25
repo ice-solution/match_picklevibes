@@ -24,14 +24,9 @@
             </div>
           </div>
           <div class="mt-4 text-sm text-white/90">
-            <% if (reg && reg.paymentStatus === 'paid') { %>
-              付款已完成。請截圖保存此頁。
-            <% } else if (reg && reg.paymentStatus === 'skipped') { %>
-              此環境未啟用線上付款或金額未設定，報名已記錄。請截圖保存此頁。
-            <% } else if (reg && reg.paymentStatus === 'pending') { %>
-              <span class="font-semibold">付款處理中或未完成。</span>請返回報名頁重新付款，或聯絡主辦方。
-            <% } else { %>
-              請截圖保存此頁，主辦方會以電郵跟進確認。
+            登記已完成。請留意電郵，我們會於稍後通知抽籤結果及付款連結。
+            <% if (reg && reg.emailSendError) { %>
+              <div class="mt-2 font-semibold">（系統未能成功發出確認電郵，請截圖保存此頁並聯絡主辦方。）</div>
             <% } %>
           </div>
         </div>
@@ -44,9 +39,9 @@
           <% } else { %>
             <dl class="grid gap-3 text-sm">
               <div class="flex items-start justify-between gap-4">
-                <dt class="text-black/60">付款狀態</dt>
+                <dt class="text-black/60">確認電郵</dt>
                 <dd class="text-right font-semibold text-pickle-ink">
-                  <% if (reg.paymentStatus === 'paid') { %>已付款<% } else if (reg.paymentStatus === 'skipped') { %>略過線上付款<% } else { %>待付款<% } %>
+                  <% if (reg.emailSentAt) { %>已發送<% } else if (reg.emailSendError) { %>發送失敗<% } else { %>待發送<% } %>
                 </dd>
               </div>
               <div class="flex items-start justify-between gap-4">
@@ -57,10 +52,16 @@
                 <dt class="text-black/60">電郵</dt>
                 <dd class="text-right font-semibold text-pickle-ink"><%= reg.email %></dd>
               </div>
-              <% if (reg.bocMemberCode) { %>
+              <% if (reg.bocReferralCode) { %>
                 <div class="flex items-start justify-between gap-4">
-                  <dt class="text-black/60">BOC 會員代碼</dt>
-                  <dd class="text-right font-semibold text-pickle-ink"><%= reg.bocMemberCode %></dd>
+                  <dt class="text-black/60">BOC 推薦碼</dt>
+                  <dd class="text-right font-semibold text-pickle-ink"><%= reg.bocReferralCode %></dd>
+                </div>
+              <% } %>
+              <% if (reg.referrerPhone) { %>
+                <div class="flex items-start justify-between gap-4">
+                  <dt class="text-black/60">推薦人電話</dt>
+                  <dd class="text-right font-semibold text-pickle-ink"><%= reg.referrerPhone %></dd>
                 </div>
               <% } %>
               <div class="flex items-start justify-between gap-4">
@@ -102,21 +103,13 @@
             </dl>
           <% } %>
 
-          <div class="mt-6 flex flex-wrap gap-3">
+          <div class="mt-6 flex justify-center">
             <a
               href="/"
               class="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-bold text-pickle-ink ring-1 ring-black/5 hover:bg-black/5"
             >
               返回首頁
             </a>
-            <% if (!reg || reg.paymentStatus !== 'pending') { %>
-              <a
-                href="/apply"
-                class="inline-flex items-center justify-center rounded-2xl bg-pickle-pink px-5 py-3 text-sm font-bold text-white shadow-sm hover:brightness-95"
-              >
-                再報名其他組別
-              </a>
-            <% } %>
           </div>
         </div>
       </div>
