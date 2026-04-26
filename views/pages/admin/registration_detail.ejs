@@ -117,7 +117,7 @@
                 <div><span class="text-black/50">姓名：</span><span class="font-semibold text-pickle-ink"><%= reg.player1?.name || "—" %></span></div>
                 <div class="mt-1"><span class="text-black/50">出生日期：</span><%= reg.player1?.dateOfBirth ? new Date(reg.player1.dateOfBirth).toISOString().slice(0, 10) : "—" %></div>
                 <div class="mt-1"><span class="text-black/50">性別：</span><%= reg.player1?.gender === "male" ? "男" : (reg.player1?.gender === "female" ? "女" : "—") %></div>
-                <div class="mt-1"><span class="text-black/50">DUPR：</span><%= reg.player1?.dupr != null ? Number(reg.player1.dupr).toFixed(2) : "—" %></div>
+                <div class="mt-1"><span class="text-black/50">DUPR：</span><%= reg.player1?.duprNR ? "NR" : (reg.player1?.dupr != null ? Number(reg.player1.dupr).toFixed(2) : "—") %></div>
               </div>
             </div>
             <div class="rounded-3xl bg-pickle-mist p-5 ring-1 ring-black/5">
@@ -126,7 +126,7 @@
                 <div><span class="text-black/50">姓名：</span><span class="font-semibold text-pickle-ink"><%= reg.player2?.name || "—" %></span></div>
                 <div class="mt-1"><span class="text-black/50">出生日期：</span><%= reg.player2?.dateOfBirth ? new Date(reg.player2.dateOfBirth).toISOString().slice(0, 10) : "—" %></div>
                 <div class="mt-1"><span class="text-black/50">性別：</span><%= reg.player2?.gender === "male" ? "男" : (reg.player2?.gender === "female" ? "女" : "—") %></div>
-                <div class="mt-1"><span class="text-black/50">DUPR：</span><%= reg.player2?.dupr != null ? Number(reg.player2.dupr).toFixed(2) : "—" %></div>
+                <div class="mt-1"><span class="text-black/50">DUPR：</span><%= reg.player2?.duprNR ? "NR" : (reg.player2?.dupr != null ? Number(reg.player2.dupr).toFixed(2) : "—") %></div>
               </div>
             </div>
           </div>

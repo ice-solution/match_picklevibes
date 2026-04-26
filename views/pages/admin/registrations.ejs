@@ -71,11 +71,11 @@
                   <td class="px-4 py-3 text-xs text-black/80"><%= r.division || "—" %></td>
                   <td class="px-4 py-3 text-xs text-black/70">
                     <div class="font-semibold text-black/80"><%= r.player1?.name || "—" %></div>
-                    <div>DUPR <%= r.player1?.dupr != null ? Number(r.player1.dupr).toFixed(2) : "—" %></div>
+                    <div>DUPR <%= r.player1?.duprNR ? "NR" : (r.player1?.dupr != null ? Number(r.player1.dupr).toFixed(2) : "—") %></div>
                   </td>
                   <td class="px-4 py-3 text-xs text-black/70">
                     <div class="font-semibold text-black/80"><%= r.player2?.name || "—" %></div>
-                    <div>DUPR <%= r.player2?.dupr != null ? Number(r.player2.dupr).toFixed(2) : "—" %></div>
+                    <div>DUPR <%= r.player2?.duprNR ? "NR" : (r.player2?.dupr != null ? Number(r.player2.dupr).toFixed(2) : "—") %></div>
                   </td>
                   <td class="whitespace-nowrap px-4 py-3">
                     <span

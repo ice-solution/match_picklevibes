@@ -5,7 +5,8 @@ const PlayerSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true, maxlength: 120 },
     dateOfBirth: { type: Date, required: true },
     gender: { type: String, required: true, enum: ["male", "female"] },
-    dupr: { type: Number, required: true, min: 1, max: 4 }
+    duprNR: { type: Boolean, required: true, default: false },
+    dupr: { type: Number, default: null, min: 2, max: 4 }
   },
   { _id: false }
 );

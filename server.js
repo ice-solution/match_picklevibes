@@ -10,6 +10,7 @@ const { sendRegistrationEmail } = require("./lib/email");
 const {
   GENDER,
   parseDuprInput,
+  allowNRForDivision,
   validateDivisionPlayers
 } = require("./lib/divisionRules");
 
@@ -138,10 +139,12 @@ function defaultApplyValues() {
     player1Name: "",
     player1Dob: "",
     player1Gender: "",
+    player1DuprNR: "",
     player1Dupr: "",
     player2Name: "",
     player2Dob: "",
     player2Gender: "",
+    player2DuprNR: "",
     player2Dupr: ""
   };
 }
@@ -191,10 +194,12 @@ app.post("/apply", async (req, res) => {
     player1Name: String(req.body.player1Name || "").trim(),
     player1Dob: String(req.body.player1Dob || "").trim(),
     player1Gender: String(req.body.player1Gender || "").trim(),
+    player1DuprNR: String(req.body.player1DuprNR || "").trim(),
     player1Dupr: String(req.body.player1Dupr || "").trim(),
     player2Name: String(req.body.player2Name || "").trim(),
     player2Dob: String(req.body.player2Dob || "").trim(),
     player2Gender: String(req.body.player2Gender || "").trim(),
+    player2DuprNR: String(req.body.player2DuprNR || "").trim(),
     player2Dupr: String(req.body.player2Dupr || "").trim()
   };
 
@@ -233,10 +238,18 @@ app.post("/apply", async (req, res) => {
     errors.player2Gender = "性別無效";
   }
 
-  const dup1 = parseDuprInput(values.player1Dupr);
-  const dup2 = parseDuprInput(values.player2Dupr);
-  if (!dup1.ok) errors.player1Dupr = dup1.error || "DUPR 無效";
-  if (!dup2.ok) errors.player2Dupr = dup2.error || "DUPR 無效";
+  const p1nr = values.player1DuprNR === "on";
+  const p2nr = values.player2DuprNR === "on";
+  const nrAllowed = allowNRForDivision(values.division);
+  if ((p1nr || p2nr) && !nrAllowed) {
+    errors.player1Dupr = "此組別不接受 NR，請填寫 DUPR";
+    errors.player2Dupr = "此組別不接受 NR，請填寫 DUPR";
+  }
+
+  const dup1 = p1nr ? { ok: true, value: null } : parseDuprInput(values.player1Dupr);
+  const dup2 = p2nr ? { ok: true, value: null } : parseDuprInput(values.player2Dupr);
+  if (!p1nr && !dup1.ok) errors.player1Dupr = dup1.error || "DUPR 無效";
+  if (!p2nr && !dup2.ok) errors.player2Dupr = dup2.error || "DUPR 無效";
 
   const refDate = getAgeReferenceDate();
   let divisionErrors = [];
@@ -255,11 +268,13 @@ app.post("/apply", async (req, res) => {
       {
         dateOfBirth: p1dob,
         gender: values.player1Gender,
+        duprNR: p1nr,
         duprRaw: values.player1Dupr
       },
       {
         dateOfBirth: p2dob,
         gender: values.player2Gender,
+        duprNR: p2nr,
         duprRaw: values.player2Dupr
       },
       refDate
@@ -290,12 +305,14 @@ app.post("/apply", async (req, res) => {
         name: values.player1Name,
         dateOfBirth: p1dob,
         gender: values.player1Gender,
+        duprNR: p1nr,
         dupr: dup1.value
       },
       player2: {
         name: values.player2Name,
         dateOfBirth: p2dob,
         gender: values.player2Gender,
+        duprNR: p2nr,
         dupr: dup2.value
       },
       division: values.division,
@@ -447,11 +464,11 @@ app.get("/admin/export.xlsx", requireAdmin, async (req, res) => {
     球員1姓名: r.player1?.name || "",
     球員1出生日期: r.player1?.dateOfBirth ? new Date(r.player1.dateOfBirth).toISOString().slice(0, 10) : "",
     球員1性別: r.player1?.gender === "male" ? "男" : (r.player1?.gender === "female" ? "女" : ""),
-    球員1DUPR: r.player1?.dupr != null ? Number(r.player1.dupr).toFixed(2) : "",
+    球員1DUPR: r.player1?.duprNR ? "NR" : (r.player1?.dupr != null ? Number(r.player1.dupr).toFixed(2) : ""),
     球員2姓名: r.player2?.name || "",
     球員2出生日期: r.player2?.dateOfBirth ? new Date(r.player2.dateOfBirth).toISOString().slice(0, 10) : "",
     球員2性別: r.player2?.gender === "male" ? "男" : (r.player2?.gender === "female" ? "女" : ""),
-    球員2DUPR: r.player2?.dupr != null ? Number(r.player2.dupr).toFixed(2) : "",
+    球員2DUPR: r.player2?.duprNR ? "NR" : (r.player2?.dupr != null ? Number(r.player2.dupr).toFixed(2) : ""),
     備註: r.notes || "",
     電郵通知狀態: r.emailSentAt ? "已發送" : (r.emailSendError ? "發送失敗" : "待發送"),
     電郵發送時間: r.emailSentAt ? new Date(r.emailSentAt).toLocaleString("zh-HK", { hour12: false }) : "",
