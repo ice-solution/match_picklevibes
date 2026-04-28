@@ -23,7 +23,6 @@ const RegistrationSchema = new mongoose.Schema(
     },
     phone: { type: String, required: true, trim: true, maxlength: 30 },
     bocReferralCode: { type: String, required: true, trim: true, maxlength: 64 },
-    referrerPhone: { type: String, required: true, trim: true, maxlength: 30 },
 
     player1: { type: PlayerSchema, required: true },
     player2: { type: PlayerSchema, required: true },

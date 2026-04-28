@@ -47,7 +47,8 @@
           </div>
         <% } %>
 
-        <form method="post" action="/apply" class="mt-6 grid gap-4">
+        <% const expectedBoc = typeof expectedBocCode !== 'undefined' ? expectedBocCode : 'BOCLP26'; %>
+        <form method="post" action="/apply" class="mt-6 grid gap-4" data-expected-boc="<%= expectedBoc %>">
           <div>
             <label class="text-sm font-semibold text-pickle-ink">聯絡人姓名</label>
             <input
@@ -89,30 +90,33 @@
           </div>
 
           <div>
-            <label class="text-sm font-semibold text-pickle-ink">BOC 推薦碼</label>
-            <input
-              name="bocReferralCode"
-              value="<%= values.bocReferralCode || '' %>"
-              class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
-              placeholder="例如：ABC123"
-              autocomplete="off"
-              required
-            />
-            <% if (errors.bocReferralCode) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.bocReferralCode %></div><% } %>
-          </div>
-
-          <div>
-            <label class="text-sm font-semibold text-pickle-ink">推薦人電話號碼</label>
-            <input
-              name="referrerPhone"
-              value="<%= values.referrerPhone || '' %>"
-              class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
-              placeholder="例如：9123 4567"
-              autocomplete="tel"
-              inputmode="tel"
-              required
-            />
-            <% if (errors.referrerPhone) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.referrerPhone %></div><% } %>
+            <label class="text-sm font-semibold text-pickle-ink" for="bocReferralCodeInput">BOC 推薦碼</label>
+            <div class="mt-2 flex items-center gap-2">
+              <input
+                id="bocReferralCodeInput"
+                name="bocReferralCode"
+                value="<%= values.bocReferralCode || '' %>"
+                class="min-w-0 flex-1 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+                placeholder="請輸入 BOC 推薦碼"
+                autocomplete="off"
+                autocapitalize="characters"
+                spellcheck="false"
+                required
+              />
+              <div
+                class="flex h-[46px] w-8 shrink-0 items-center justify-center text-lg font-extrabold leading-none"
+                aria-hidden="true"
+              >
+                <span id="bocOkIcon" class="hidden text-emerald-600">✓</span>
+                <span id="bocBadIcon" class="hidden text-red-600">✕</span>
+              </div>
+            </div>
+            <% if (errors.bocReferralCode) { %>
+              <div id="bocServerError" class="mt-2 text-xs font-semibold text-red-600"><%= errors.bocReferralCode %></div>
+            <% } else { %>
+              <div id="bocServerError" class="mt-2 hidden text-xs font-semibold text-red-600"></div>
+            <% } %>
+            <div id="bocClientError" class="mt-2 hidden text-xs font-semibold text-red-600">BOC 推薦碼不符合</div>
           </div>
 
           <div>
@@ -500,6 +504,41 @@
         const overlay = document.getElementById('submitDisabledOverlay');
         const divisionSelect = document.getElementById('divisionSelect');
         let allowSubmit = false;
+        const EXPECTED_BOC = (form && form.dataset && form.dataset.expectedBoc) || "BOCLP26";
+
+        const bocInput = document.getElementById('bocReferralCodeInput');
+        const bocOkIcon = document.getElementById('bocOkIcon');
+        const bocBadIcon = document.getElementById('bocBadIcon');
+        const bocClientError = document.getElementById('bocClientError');
+        const bocServerError = document.getElementById('bocServerError');
+
+        function syncBocStatus() {
+          if (!bocInput) return;
+          const v = String(bocInput.value || '').trim();
+          bocOkIcon && bocOkIcon.classList.add('hidden');
+          bocBadIcon && bocBadIcon.classList.add('hidden');
+          bocClientError && bocClientError.classList.add('hidden');
+          if (!v) {
+            if (bocServerError) {
+              if (bocServerError.textContent.trim()) bocServerError.classList.remove('hidden');
+              else bocServerError.classList.add('hidden');
+            }
+            return;
+          }
+          if (bocServerError) bocServerError.classList.add('hidden');
+          if (v === EXPECTED_BOC) {
+            bocOkIcon && bocOkIcon.classList.remove('hidden');
+          } else {
+            bocBadIcon && bocBadIcon.classList.remove('hidden');
+            bocClientError && bocClientError.classList.remove('hidden');
+          }
+        }
+
+        if (bocInput) {
+          bocInput.addEventListener('input', syncBocStatus);
+          bocInput.addEventListener('blur', syncBocStatus);
+        }
+        syncBocStatus();
 
         function syncSubmitState() {
           const ok = checkbox && checkbox.checked;
@@ -554,6 +593,13 @@
         if (form) {
           form.addEventListener('submit', function (e) {
             if (allowSubmit) return;
+            const bocVal = bocInput ? String(bocInput.value || '').trim() : '';
+            if (bocVal !== EXPECTED_BOC) {
+              e.preventDefault();
+              syncBocStatus();
+              if (bocInput) bocInput.focus();
+              return;
+            }
             // 若未同意收集聲明，瀏覽器 required 會擋；這裡只處理「提交前確認」
             e.preventDefault();
             openConfirm();
@@ -561,6 +607,12 @@
         }
         if (acceptConfirm) {
           acceptConfirm.addEventListener('click', function () {
+            const bocVal = bocInput ? String(bocInput.value || '').trim() : '';
+            if (bocVal !== EXPECTED_BOC) {
+              syncBocStatus();
+              if (bocInput) bocInput.focus();
+              return;
+            }
             allowSubmit = true;
             closeConfirm();
             if (form) form.submit();

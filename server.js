@@ -21,6 +21,10 @@ const MONGODB_URI = process.env.MONGODB_URI;
 const SESSION_SECRET = process.env.SESSION_SECRET || "dev-session-secret";
 const ADMIN_USER = String(process.env.ADMIN_USER || "").trim();
 const ADMIN_PASS = String(process.env.ADMIN_PASS || "").trim();
+/** 報名表 BOC 推薦碼必須與此完全一致（可用 .env 的 BOC_EXPECTED_REFERRAL_CODE 覆寫） */
+const BOC_EXPECTED_REFERRAL_CODE = String(
+  process.env.BOC_EXPECTED_REFERRAL_CODE || "BOCLP26"
+).trim();
 
 const TOURNAMENT = {
   name: process.env.TOURNAMENT_NAME || "PickleVibes 匹克球公開賽",
@@ -132,7 +136,6 @@ function defaultApplyValues() {
     email: "",
     phone: "",
     bocReferralCode: "",
-    referrerPhone: "",
     division: "",
     notes: "",
     consentAccepted: "",
@@ -147,6 +150,15 @@ function defaultApplyValues() {
     player2DuprNR: "",
     player2Dupr: ""
   };
+}
+
+function renderApply(res, locals) {
+  return res.render("pages/apply", {
+    tournament: TOURNAMENT,
+    registrationDeadline: getRegistrationDeadline(),
+    expectedBocCode: BOC_EXPECTED_REFERRAL_CODE,
+    ...locals
+  });
 }
 
 app.get("/", (req, res) => {
@@ -164,9 +176,7 @@ app.get("/apply", (req, res) => {
       registrationDeadline: getRegistrationDeadline()
     });
   }
-  res.render("pages/apply", {
-    tournament: TOURNAMENT,
-    registrationDeadline: getRegistrationDeadline(),
+  renderApply(res, {
     values: defaultApplyValues(),
     errors: {},
     errorList: [],
@@ -187,7 +197,6 @@ app.post("/apply", async (req, res) => {
     email: normalizeEmail(req.body.email),
     phone: String(req.body.phone || "").trim(),
     bocReferralCode: String(req.body.bocReferralCode || "").trim(),
-    referrerPhone: String(req.body.referrerPhone || "").trim(),
     division: String(req.body.division || "").trim(),
     notes: String(req.body.notes || "").trim(),
     consentAccepted: String(req.body.consentAccepted || "").trim(),
@@ -209,7 +218,9 @@ app.post("/apply", async (req, res) => {
   if (values.email && !isValidEmail(values.email)) errors.email = "電郵格式不正確";
   if (!values.phone) errors.phone = "請填寫電話";
   if (!values.bocReferralCode) errors.bocReferralCode = "請填寫 BOC 推薦碼";
-  if (!values.referrerPhone) errors.referrerPhone = "請填寫 推薦人電話號碼";
+  else if (values.bocReferralCode !== BOC_EXPECTED_REFERRAL_CODE) {
+    errors.bocReferralCode = "BOC 推薦碼不符合";
+  }
   if (!values.division) errors.division = "請選擇組別";
   if (values.consentAccepted !== "on") errors.consentAccepted = "你必須同意個人資料收集聲明才可提交";
 
@@ -284,9 +295,7 @@ app.post("/apply", async (req, res) => {
 
   const errorList = [...divisionErrors];
   if (Object.keys(errors).length || errorList.length) {
-    return res.status(400).render("pages/apply", {
-      tournament: TOURNAMENT,
-      registrationDeadline: getRegistrationDeadline(),
+    return renderApply(res.status(400), {
       values,
       errors,
       errorList,
@@ -300,7 +309,6 @@ app.post("/apply", async (req, res) => {
       email: values.email,
       phone: values.phone,
       bocReferralCode: values.bocReferralCode,
-      referrerPhone: values.referrerPhone,
       player1: {
         name: values.player1Name,
         dateOfBirth: p1dob,
@@ -348,9 +356,7 @@ app.post("/apply", async (req, res) => {
       err && err.code === 11000
         ? "你已經用同一電郵報名過此組別"
         : "系統錯誤，請稍後再試";
-    return res.status(500).render("pages/apply", {
-      tournament: TOURNAMENT,
-      registrationDeadline: getRegistrationDeadline(),
+    return renderApply(res.status(500), {
       values,
       errors: { form: message },
       errorList: [],
@@ -459,7 +465,6 @@ app.get("/admin/export.xlsx", requireAdmin, async (req, res) => {
     電郵: r.email || "",
     電話: r.phone || "",
     BOC推薦碼: r.bocReferralCode || "",
-    推薦人電話: r.referrerPhone || "",
     組別: r.division || "",
     球員1姓名: r.player1?.name || "",
     球員1出生日期: r.player1?.dateOfBirth ? new Date(r.player1.dateOfBirth).toISOString().slice(0, 10) : "",
