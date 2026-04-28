@@ -68,7 +68,7 @@
                   </td>
                   <td class="whitespace-nowrap px-4 py-3"><%= r.email || "—" %></td>
                   <td class="whitespace-nowrap px-4 py-3"><%= r.phone || "—" %></td>
-                  <td class="px-4 py-3 text-xs text-black/80"><%= r.division || "—" %></td>
+                  <td class="px-4 py-3 text-xs text-black/80"><%= (typeof divisionLabelOrValue === 'function' ? divisionLabelOrValue(r.division) : (r.division || "—")) %></td>
                   <td class="px-4 py-3 text-xs text-black/70">
                     <div class="font-semibold text-black/80"><%= r.player1?.name || "—" %></div>
                     <div>DUPR <%= r.player1?.duprNR ? "NR" : (r.player1?.dupr != null ? Number(r.player1.dupr).toFixed(2) : "—") %></div>

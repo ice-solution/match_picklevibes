@@ -90,14 +90,14 @@
           </div>
 
           <div>
-            <label class="text-sm font-semibold text-pickle-ink" for="bocReferralCodeInput">BOC 推薦碼</label>
+            <label class="text-sm font-semibold text-pickle-ink" for="bocReferralCodeInput">推廣碼</label>
             <div class="mt-2 flex items-center gap-2">
               <input
                 id="bocReferralCodeInput"
                 name="bocReferralCode"
                 value="<%= values.bocReferralCode || '' %>"
                 class="min-w-0 flex-1 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
-                placeholder="請輸入 BOC 推薦碼"
+                placeholder="請輸入推廣碼"
                 autocomplete="off"
                 autocapitalize="characters"
                 spellcheck="false"
@@ -116,7 +116,7 @@
             <% } else { %>
               <div id="bocServerError" class="mt-2 hidden text-xs font-semibold text-red-600"></div>
             <% } %>
-            <div id="bocClientError" class="mt-2 hidden text-xs font-semibold text-red-600">BOC 推薦碼不符合</div>
+            <div id="bocClientError" class="mt-2 hidden text-xs font-semibold text-red-600">推廣碼不符合</div>
           </div>
 
           <div>

@@ -7,6 +7,7 @@ const XLSX = require("xlsx");
 
 const Registration = require("./models/Registration");
 const { sendRegistrationEmail } = require("./lib/email");
+const { divisionLabelOrValue } = require("./lib/divisions");
 const {
   GENDER,
   parseDuprInput,
@@ -217,9 +218,9 @@ app.post("/apply", async (req, res) => {
   if (!values.email) errors.email = "請填寫電郵";
   if (values.email && !isValidEmail(values.email)) errors.email = "電郵格式不正確";
   if (!values.phone) errors.phone = "請填寫電話";
-  if (!values.bocReferralCode) errors.bocReferralCode = "請填寫 BOC 推薦碼";
+  if (!values.bocReferralCode) errors.bocReferralCode = "請填寫推廣碼";
   else if (values.bocReferralCode !== BOC_EXPECTED_REFERRAL_CODE) {
-    errors.bocReferralCode = "BOC 推薦碼不符合";
+    errors.bocReferralCode = "推廣碼不符合";
   }
   if (!values.division) errors.division = "請選擇組別";
   if (values.consentAccepted !== "on") errors.consentAccepted = "你必須同意個人資料收集聲明才可提交";
@@ -369,7 +370,7 @@ app.get("/success", async (req, res) => {
   const rid = String(req.query.rid || "").trim();
   const reg = rid ? await Registration.findById(rid).lean() : null;
 
-  res.render("pages/success", { tournament: TOURNAMENT, reg });
+  res.render("pages/success", { tournament: TOURNAMENT, reg, divisionLabelOrValue });
 });
 
 // Admin: login/logout
@@ -430,6 +431,7 @@ app.get("/admin", requireAdmin, async (req, res) => {
   res.render("pages/admin/registrations", {
     tournament: TOURNAMENT,
     items,
+    divisionLabelOrValue,
     page,
     pageSize,
     total
@@ -440,7 +442,7 @@ app.get("/admin", requireAdmin, async (req, res) => {
 app.get("/admin/registration/:id", requireAdmin, async (req, res) => {
   const id = String(req.params.id || "").trim();
   const reg = id ? await Registration.findById(id).lean() : null;
-  res.render("pages/admin/registration_detail", { tournament: TOURNAMENT, reg });
+  res.render("pages/admin/registration_detail", { tournament: TOURNAMENT, reg, divisionLabelOrValue });
 });
 
 // Admin: check email sending status
@@ -464,8 +466,8 @@ app.get("/admin/export.xlsx", requireAdmin, async (req, res) => {
     聯絡人姓名: r.fullName || "",
     電郵: r.email || "",
     電話: r.phone || "",
-    BOC推薦碼: r.bocReferralCode || "",
-    組別: r.division || "",
+    推廣碼: r.bocReferralCode || "",
+    組別: divisionLabelOrValue(r.division),
     球員1姓名: r.player1?.name || "",
     球員1出生日期: r.player1?.dateOfBirth ? new Date(r.player1.dateOfBirth).toISOString().slice(0, 10) : "",
     球員1性別: r.player1?.gender === "male" ? "男" : (r.player1?.gender === "female" ? "女" : ""),
