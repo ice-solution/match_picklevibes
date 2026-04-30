@@ -7,7 +7,7 @@ const XLSX = require("xlsx");
 
 const Registration = require("./models/Registration");
 const { sendRegistrationEmail } = require("./lib/email");
-const { divisionLabelOrValue } = require("./lib/divisions");
+const { divisionLabelOrValue, divisionCapacity } = require("./lib/divisions");
 const {
   GENDER,
   parseDuprInput,
@@ -162,6 +162,20 @@ function renderApply(res, locals) {
   });
 }
 
+async function getDivisionCounts() {
+  const rows = await Registration.aggregate([
+    { $group: { _id: "$division", count: { $sum: 1 } } }
+  ]);
+  const out = {};
+  for (const r of rows) out[String(r._id || "").trim()] = Number(r.count || 0);
+  return out;
+}
+
+async function renderApplyWithStats(res, locals) {
+  const divisionCounts = await getDivisionCounts();
+  return renderApply(res, { divisionCounts, divisionCapacity, ...locals });
+}
+
 app.get("/", (req, res) => {
   res.render("pages/home", {
     tournament: TOURNAMENT,
@@ -177,7 +191,7 @@ app.get("/apply", (req, res) => {
       registrationDeadline: getRegistrationDeadline()
     });
   }
-  renderApply(res, {
+  renderApplyWithStats(res, {
     values: defaultApplyValues(),
     errors: {},
     errorList: [],
@@ -296,7 +310,7 @@ app.post("/apply", async (req, res) => {
 
   const errorList = [...divisionErrors];
   if (Object.keys(errors).length || errorList.length) {
-    return renderApply(res.status(400), {
+    return renderApplyWithStats(res.status(400), {
       values,
       errors,
       errorList,
@@ -305,6 +319,17 @@ app.post("/apply", async (req, res) => {
   }
 
   try {
+    const cap = divisionCapacity(values.division);
+    const current = await Registration.countDocuments({ division: values.division });
+    if (current >= cap) {
+      return renderApplyWithStats(res.status(400), {
+        values,
+        errors: { ...errors, division: "該組別名額已滿，請選擇其他組別" },
+        errorList: [],
+        cancelled: false
+      });
+    }
+
     const doc = {
       fullName: values.fullName,
       email: values.email,
@@ -357,7 +382,7 @@ app.post("/apply", async (req, res) => {
       err && err.code === 11000
         ? "你已經用同一電郵報名過此組別"
         : "系統錯誤，請稍後再試";
-    return renderApply(res.status(500), {
+    return renderApplyWithStats(res.status(500), {
       values,
       errors: { form: message },
       errorList: [],
