@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-HK">
+  <head>
+    <%- include("../../partials/head", { title: "後台 - 批次付款電郵 - " + tournament.name, tournament }) %>
+    <style>
+      body { font-family: "Noto Sans TC", system-ui, -apple-system, sans-serif; }
+    </style>
+  </head>
+  <body>
+    <header class="sticky top-0 z-40 border-b border-black/5 bg-white/80 backdrop-blur">
+      <div class="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
+        <div>
+          <div class="text-sm font-extrabold text-pickle-ink">後台 · 批次付款電郵（Stripe）</div>
+          <div class="text-xs text-black/60"><%= tournament.name %></div>
+        </div>
+        <div class="flex gap-2">
+          <a href="/admin" class="rounded-xl px-3 py-2 text-sm font-bold text-pickle-ink hover:bg-black/5">返回列表</a>
+          <form method="post" action="/admin/logout">
+            <button class="rounded-xl px-3 py-2 text-sm font-bold text-pickle-ink hover:bg-black/5" type="submit">登出</button>
+          </form>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-4xl px-4 py-8">
+      <% if (!stripeOk) { %>
+        <div class="rounded-3xl bg-red-50 p-5 text-sm text-red-800 ring-1 ring-red-100">
+          Stripe 未設定：請在伺服器環境變數設定 <span class="font-mono">STRIPE_SECRET_KEY</span>、<span class="font-mono">STRIPE_WEBHOOK_SECRET</span>，並設定公開網址 <span class="font-mono">APP_BASE_URL</span>（Stripe 回跳與電郵 banner 連結會用到）。
+        </div>
+      <% } else { %>
+        <div class="rounded-3xl bg-white p-6 ring-1 ring-black/5 md:p-8">
+          <div class="text-sm font-extrabold text-pickle-ink">發送對象</div>
+          <div class="mt-2 text-sm text-black/70">
+            尚未標記為「已付款」的報名：<span class="font-bold text-pickle-ink"><%= unpaidCount %></span> 筆
+          </div>
+
+          <form method="post" action="/admin/payment-batch/send" class="mt-6 grid gap-4">
+            <label class="flex items-start gap-3 text-sm text-black/80">
+              <input type="checkbox" name="sendPaidToo" value="1" class="mt-1 h-4 w-4 rounded border-black/20 text-pickle-teal focus:ring-pickle-teal/30" />
+              <span>
+                即使已付款亦重新建立 Stripe Checkout 並再發一次電郵（一般用於補發；會建立新的付款連結）
+              </span>
+            </label>
+
+            <button
+              type="submit"
+              class="inline-flex items-center justify-center rounded-2xl bg-pickle-pink px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+              <%= stripeOk ? '' : 'disabled' %>
+            >
+              開始批次發送
+            </button>
+
+            <div class="rounded-2xl bg-pickle-mist p-4 text-xs text-black/60 ring-1 ring-black/5">
+              Webhook URL：<span class="break-all font-mono text-black/70"><%= webhookUrl %></span>
+            </div>
+          </form>
+        </div>
+      <% } %>
+
+      <% if (result && result.lines && result.lines.length) { %>
+        <div class="mt-6 rounded-3xl bg-white p-6 ring-1 ring-black/5 md:p-8">
+          <div class="text-sm font-extrabold text-pickle-ink">結果摘要</div>
+          <div class="mt-2 text-sm text-black/70">
+            成功：<span class="font-bold text-green-700"><%= result.ok %></span>　失敗：<span class="font-bold text-red-700"><%= result.fail %></span>
+          </div>
+          <div class="mt-4 max-h-[420px] overflow-auto rounded-2xl bg-black/[0.02] p-3 text-xs ring-1 ring-black/5">
+            <% result.lines.forEach(function (line) { %>
+              <div class="border-b border-black/5 py-2 last:border-b-0"><%= line %></div>
+            <% }); %>
+          </div>
+        </div>
+      <% } %>
+    </main>
+  </body>
+</html>

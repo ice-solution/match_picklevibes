@@ -33,12 +33,20 @@
         <div class="text-sm text-black/60">
           共 <span class="font-bold text-pickle-ink"><%= total %></span> 筆 · 第 <%= page %> 頁
         </div>
-        <a
-          href="/admin/export.xlsx"
-          class="rounded-xl bg-pickle-pink px-3 py-2 text-sm font-extrabold text-white shadow-sm hover:brightness-95"
-        >
-          匯出 XLSX
-        </a>
+        <div class="flex flex-wrap gap-2">
+          <a
+            href="/admin/payment-batch"
+            class="rounded-xl bg-pickle-teal px-3 py-2 text-sm font-extrabold text-white shadow-sm hover:brightness-95"
+          >
+            批次付款電郵
+          </a>
+          <a
+            href="/admin/export.xlsx"
+            class="rounded-xl bg-pickle-pink px-3 py-2 text-sm font-extrabold text-white shadow-sm hover:brightness-95"
+          >
+            匯出 XLSX
+          </a>
+        </div>
       </div>
 
       <div class="mt-4 overflow-hidden rounded-3xl bg-white ring-1 ring-black/5">
@@ -51,6 +59,7 @@
                 <th class="whitespace-nowrap px-4 py-3">電郵</th>
                 <th class="whitespace-nowrap px-4 py-3">電話</th>
                 <th class="whitespace-nowrap px-4 py-3">組別</th>
+                <th class="whitespace-nowrap px-4 py-3">付款</th>
                 <th class="whitespace-nowrap px-4 py-3">球員 1</th>
                 <th class="whitespace-nowrap px-4 py-3">球員 2</th>
                 <th class="whitespace-nowrap px-4 py-3">電郵通知</th>
@@ -69,13 +78,17 @@
                   <td class="whitespace-nowrap px-4 py-3"><%= r.email || "—" %></td>
                   <td class="whitespace-nowrap px-4 py-3"><%= r.phone || "—" %></td>
                   <td class="px-4 py-3 text-xs text-black/80"><%= (typeof divisionLabelOrValue === 'function' ? divisionLabelOrValue(r.division) : (r.division || "—")) %></td>
+                  <td class="whitespace-nowrap px-4 py-3 text-xs font-semibold text-black/70">
+                    <% const ps = r.paymentStatus || "unpaid"; %>
+                    <%= ps === "paid" ? "已付款" : (ps === "pending" ? "待付款" : "未付款") %>
+                  </td>
                   <td class="px-4 py-3 text-xs text-black/70">
                     <div class="font-semibold text-black/80"><%= r.player1?.name || "—" %></div>
-                    <div>DUPR <%= r.player1?.duprNR ? "NR" : (r.player1?.dupr != null ? Number(r.player1.dupr).toFixed(2) : "—") %></div>
+                    <div>DUPR <%= duprOrNR(r.player1) %></div>
                   </td>
                   <td class="px-4 py-3 text-xs text-black/70">
                     <div class="font-semibold text-black/80"><%= r.player2?.name || "—" %></div>
-                    <div>DUPR <%= r.player2?.duprNR ? "NR" : (r.player2?.dupr != null ? Number(r.player2.dupr).toFixed(2) : "—") %></div>
+                    <div>DUPR <%= duprOrNR(r.player2) %></div>
                   </td>
                   <td class="whitespace-nowrap px-4 py-3">
                     <span
@@ -100,7 +113,7 @@
               <% }); %>
               <% if (!items || items.length === 0) { %>
                 <tr>
-                  <td class="px-4 py-8 text-center text-sm text-black/50" colspan="9">暫無資料</td>
+                  <td class="px-4 py-8 text-center text-sm text-black/50" colspan="10">暫無資料</td>
                 </tr>
               <% } %>
             </tbody>

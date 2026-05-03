@@ -6,13 +6,15 @@ require("dotenv").config();
 const XLSX = require("xlsx");
 
 const Registration = require("./models/Registration");
-const { sendRegistrationEmail } = require("./lib/email");
-const { divisionLabelOrValue, divisionCapacity } = require("./lib/divisions");
+const PaymentTransaction = require("./models/PaymentTransaction");
+const { sendRegistrationEmail, sendPaymentRequestEmail, duprOrNR } = require("./lib/email");
+const { divisionLabelOrValue, divisionCapacity, divisionFeeCents } = require("./lib/divisions");
 const {
   GENDER,
   parseDuprInput,
   allowNRForDivision,
-  validateDivisionPlayers
+  validateDivisionPlayers,
+  isKidsDivision
 } = require("./lib/divisionRules");
 
 const app = express();
@@ -22,7 +24,7 @@ const MONGODB_URI = process.env.MONGODB_URI;
 const SESSION_SECRET = process.env.SESSION_SECRET || "dev-session-secret";
 const ADMIN_USER = String(process.env.ADMIN_USER || "").trim();
 const ADMIN_PASS = String(process.env.ADMIN_PASS || "").trim();
-/** 報名表 BOC 推薦碼必須與此完全一致（可用 .env 的 BOC_EXPECTED_REFERRAL_CODE 覆寫） */
+/** 若報名時填寫推廣碼，須與此完全一致；留空可不填（可用 .env 的 BOC_EXPECTED_REFERRAL_CODE 覆寫） */
 const BOC_EXPECTED_REFERRAL_CODE = String(
   process.env.BOC_EXPECTED_REFERRAL_CODE || "BOCLP26"
 ).trim();
@@ -74,13 +76,15 @@ function stripeWebhookSecret() {
   return String(process.env.STRIPE_WEBHOOK_SECRET || "").trim();
 }
 
+function stripeConfigured() {
+  return Boolean(String(process.env.STRIPE_SECRET_KEY || "").trim());
+}
+
 function baseUrl(req) {
   const fromEnv = process.env.APP_BASE_URL;
   if (fromEnv) return String(fromEnv).replace(/\/$/, "");
   return `${req.protocol}://${req.get("host")}`;
 }
-
-// Stripe 已停用（保留 env 可能仍存在，但流程不再使用）
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
@@ -102,8 +106,72 @@ app.use(
   })
 );
 
-// Stripe Webhook：必須用 raw body 驗證簽名
-// Stripe webhook 已停用
+// Stripe Webhook：必須使用 raw body 驗證簽名（請勿套用 json/urlencoded）
+app.post("/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  const stripe = stripeClient();
+  const secret = stripeWebhookSecret();
+  if (!stripe || !secret) return res.status(500).send("stripe webhook not configured");
+
+  let event;
+  try {
+    const sig = req.headers["stripe-signature"];
+    event = stripe.webhooks.constructEvent(req.body, sig, secret);
+  } catch (err) {
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object;
+        const sid = session.id;
+        const paid =
+          session.payment_status === "paid" || session.payment_status === "no_payment_required";
+        const rid = session.metadata && session.metadata.registrationId ? String(session.metadata.registrationId) : "";
+
+        const txn = await PaymentTransaction.findOne({ stripeCheckoutSessionId: sid });
+        if (txn && paid) {
+          txn.status = "paid";
+          txn.paidAt = new Date();
+          txn.stripePaymentIntentId =
+            typeof session.payment_intent === "string"
+              ? session.payment_intent
+              : session.payment_intent && session.payment_intent.id
+                ? session.payment_intent.id
+                : txn.stripePaymentIntentId;
+          txn.lastWebhookEventId = event.id;
+          await txn.save();
+
+          if (rid) {
+            await Registration.findByIdAndUpdate(rid, {
+              paymentStatus: "paid",
+              paidAt: txn.paidAt,
+              latestStripeCheckoutSessionId: sid,
+              latestPaymentAmountCents: txn.amountCents
+            });
+          }
+        }
+        break;
+      }
+      case "checkout.session.expired": {
+        const session = event.data.object;
+        await PaymentTransaction.findOneAndUpdate(
+          { stripeCheckoutSessionId: session.id },
+          { $set: { status: "expired", lastWebhookEventId: event.id } }
+        );
+        break;
+      }
+      default:
+        break;
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error("stripe webhook handler failed:", e);
+    return res.status(500).send("handler error");
+  }
+
+  return res.json({ received: true });
+});
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
@@ -115,6 +183,88 @@ function requireAdmin(req, res, next) {
 
 function adminConfigured() {
   return Boolean(ADMIN_USER && ADMIN_PASS);
+}
+
+async function appPublicBaseUrl(req) {
+  const env = String(process.env.APP_BASE_URL || "")
+    .trim()
+    .replace(/\/$/, "");
+  if (env) return env;
+  return baseUrl(req);
+}
+
+async function createCheckoutSessionAndSendPaymentEmail(regLean, req) {
+  const stripe = stripeClient();
+  if (!stripe) throw new Error("Stripe 未設定（缺少 STRIPE_SECRET_KEY）");
+  const pub = await appPublicBaseUrl(req);
+  const currency = String(process.env.STRIPE_CURRENCY || "hkd")
+    .trim()
+    .toLowerCase();
+  const amount = divisionFeeCents(regLean.division);
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    customer_email: regLean.email,
+    line_items: [
+      {
+        price_data: {
+          currency,
+          unit_amount: amount,
+          product_data: {
+            name: `${TOURNAMENT.name} · 報名費`,
+            description: divisionLabelOrValue(regLean.division)
+          }
+        },
+        quantity: 1
+      }
+    ],
+    success_url: `${pub}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${pub}/payment/cancel?rid=${regLean._id}`,
+    metadata: {
+      registrationId: String(regLean._id)
+    }
+  });
+
+  await PaymentTransaction.create({
+    registration: regLean._id,
+    stripeCheckoutSessionId: session.id,
+    amountCents: amount,
+    currency,
+    status: "pending",
+    checkoutUrl: session.url || ""
+  });
+
+  await Registration.findByIdAndUpdate(regLean._id, {
+    paymentStatus: "pending",
+    latestStripeCheckoutSessionId: session.id,
+    latestPaymentAmountCents: amount
+  });
+
+  try {
+    await sendPaymentRequestEmail({
+      tournament: TOURNAMENT,
+      reg: regLean,
+      checkoutUrl: session.url,
+      amountCents: amount,
+      publicBaseUrl: pub
+    });
+    await PaymentTransaction.findOneAndUpdate(
+      { stripeCheckoutSessionId: session.id },
+      { paymentEmailSentAt: new Date(), paymentEmailSendError: "" }
+    );
+  } catch (emailErr) {
+    await PaymentTransaction.findOneAndUpdate(
+      { stripeCheckoutSessionId: session.id },
+      {
+        paymentEmailSendError: String(
+          emailErr && emailErr.message ? emailErr.message : emailErr || "email send failed"
+        )
+      }
+    );
+    throw emailErr;
+  }
+
+  return session;
 }
 
 function normalizeEmail(email) {
@@ -144,11 +294,13 @@ function defaultApplyValues() {
     player1Dob: "",
     player1Gender: "",
     player1DuprNR: "",
+    player1KidNoDupr: "",
     player1Dupr: "",
     player2Name: "",
     player2Dob: "",
     player2Gender: "",
     player2DuprNR: "",
+    player2KidNoDupr: "",
     player2Dupr: ""
   };
 }
@@ -157,7 +309,6 @@ function renderApply(res, locals) {
   return res.render("pages/apply", {
     tournament: TOURNAMENT,
     registrationDeadline: getRegistrationDeadline(),
-    expectedBocCode: BOC_EXPECTED_REFERRAL_CODE,
     ...locals
   });
 }
@@ -219,11 +370,13 @@ app.post("/apply", async (req, res) => {
     player1Dob: String(req.body.player1Dob || "").trim(),
     player1Gender: String(req.body.player1Gender || "").trim(),
     player1DuprNR: String(req.body.player1DuprNR || "").trim(),
+    player1KidNoDupr: String(req.body.player1KidNoDupr || "").trim(),
     player1Dupr: String(req.body.player1Dupr || "").trim(),
     player2Name: String(req.body.player2Name || "").trim(),
     player2Dob: String(req.body.player2Dob || "").trim(),
     player2Gender: String(req.body.player2Gender || "").trim(),
     player2DuprNR: String(req.body.player2DuprNR || "").trim(),
+    player2KidNoDupr: String(req.body.player2KidNoDupr || "").trim(),
     player2Dupr: String(req.body.player2Dupr || "").trim()
   };
 
@@ -232,8 +385,10 @@ app.post("/apply", async (req, res) => {
   if (!values.email) errors.email = "請填寫電郵";
   if (values.email && !isValidEmail(values.email)) errors.email = "電郵格式不正確";
   if (!values.phone) errors.phone = "請填寫電話";
-  if (!values.bocReferralCode) errors.bocReferralCode = "請填寫推廣碼";
-  else if (values.bocReferralCode !== BOC_EXPECTED_REFERRAL_CODE) {
+  if (
+    values.bocReferralCode &&
+    values.bocReferralCode !== BOC_EXPECTED_REFERRAL_CODE
+  ) {
     errors.bocReferralCode = "推廣碼不符合";
   }
   if (!values.division) errors.division = "請選擇組別";
@@ -264,18 +419,41 @@ app.post("/apply", async (req, res) => {
     errors.player2Gender = "性別無效";
   }
 
+  const kidDiv = isKidsDivision(values.division);
   const p1nr = values.player1DuprNR === "on";
   const p2nr = values.player2DuprNR === "on";
+  const p1kid = values.player1KidNoDupr === "on";
+  const p2kid = values.player2KidNoDupr === "on";
+
+  if (kidDiv && (p1nr || p2nr)) {
+    errors.player1Dupr = "小朋友組不適用 NR；如沒有 DUPR 請勾選「沒有 DUPR 積分」";
+    errors.player2Dupr = "小朋友組不適用 NR；如沒有 DUPR 請勾選「沒有 DUPR 積分」";
+  }
+
   const nrAllowed = allowNRForDivision(values.division);
-  if ((p1nr || p2nr) && !nrAllowed) {
+  if (!kidDiv && (p1nr || p2nr) && !nrAllowed) {
     errors.player1Dupr = "此組別不接受 NR，請填寫 DUPR";
     errors.player2Dupr = "此組別不接受 NR，請填寫 DUPR";
   }
 
-  const dup1 = p1nr ? { ok: true, value: null } : parseDuprInput(values.player1Dupr);
-  const dup2 = p2nr ? { ok: true, value: null } : parseDuprInput(values.player2Dupr);
-  if (!p1nr && !dup1.ok) errors.player1Dupr = dup1.error || "DUPR 無效";
-  if (!p2nr && !dup2.ok) errors.player2Dupr = dup2.error || "DUPR 無效";
+  let dup1;
+  let dup2;
+  if (kidDiv) {
+    dup1 = p1kid ? { ok: true, value: null } : parseDuprInput(values.player1Dupr);
+    dup2 = p2kid ? { ok: true, value: null } : parseDuprInput(values.player2Dupr);
+    if (!p1kid && !dup1.ok) errors.player1Dupr = dup1.error || "DUPR 無效";
+    if (!p2kid && !dup2.ok) errors.player2Dupr = dup2.error || "DUPR 無效";
+  } else {
+    dup1 = p1nr ? { ok: true, value: null } : parseDuprInput(values.player1Dupr);
+    dup2 = p2nr ? { ok: true, value: null } : parseDuprInput(values.player2Dupr);
+    if (!p1nr && !dup1.ok) errors.player1Dupr = dup1.error || "DUPR 無效";
+    if (!p2nr && !dup2.ok) errors.player2Dupr = dup2.error || "DUPR 無效";
+  }
+
+  if (!kidDiv && (p1kid || p2kid)) {
+    errors.player1Dupr = "「沒有 DUPR 積分」只適用於小朋友組別";
+    errors.player2Dupr = "「沒有 DUPR 積分」只適用於小朋友組別";
+  }
 
   const refDate = getAgeReferenceDate();
   let divisionErrors = [];
@@ -294,13 +472,15 @@ app.post("/apply", async (req, res) => {
       {
         dateOfBirth: p1dob,
         gender: values.player1Gender,
-        duprNR: p1nr,
+        duprNR: kidDiv ? false : p1nr,
+        duprKidSkip: kidDiv && p1kid,
         duprRaw: values.player1Dupr
       },
       {
         dateOfBirth: p2dob,
         gender: values.player2Gender,
-        duprNR: p2nr,
+        duprNR: kidDiv ? false : p2nr,
+        duprKidSkip: kidDiv && p2kid,
         duprRaw: values.player2Dupr
       },
       refDate
@@ -339,14 +519,16 @@ app.post("/apply", async (req, res) => {
         name: values.player1Name,
         dateOfBirth: p1dob,
         gender: values.player1Gender,
-        duprNR: p1nr,
+        duprNR: kidDiv ? false : p1nr,
+        kidNoDuprScore: kidDiv && p1kid,
         dupr: dup1.value
       },
       player2: {
         name: values.player2Name,
         dateOfBirth: p2dob,
         gender: values.player2Gender,
-        duprNR: p2nr,
+        duprNR: kidDiv ? false : p2nr,
+        kidNoDuprScore: kidDiv && p2kid,
         dupr: dup2.value
       },
       division: values.division,
@@ -395,7 +577,17 @@ app.get("/success", async (req, res) => {
   const rid = String(req.query.rid || "").trim();
   const reg = rid ? await Registration.findById(rid).lean() : null;
 
-  res.render("pages/success", { tournament: TOURNAMENT, reg, divisionLabelOrValue });
+  res.render("pages/success", { tournament: TOURNAMENT, reg, divisionLabelOrValue, duprOrNR });
+});
+
+app.get("/payment/success", (req, res) => {
+  const sessionId = String(req.query.session_id || "").trim();
+  res.render("pages/payment_success", { tournament: TOURNAMENT, sessionId });
+});
+
+app.get("/payment/cancel", (req, res) => {
+  const rid = String(req.query.rid || "").trim();
+  res.render("pages/payment_cancel", { tournament: TOURNAMENT, rid });
 });
 
 // Admin: login/logout
@@ -457,6 +649,7 @@ app.get("/admin", requireAdmin, async (req, res) => {
     tournament: TOURNAMENT,
     items,
     divisionLabelOrValue,
+    duprOrNR,
     page,
     pageSize,
     total
@@ -467,7 +660,32 @@ app.get("/admin", requireAdmin, async (req, res) => {
 app.get("/admin/registration/:id", requireAdmin, async (req, res) => {
   const id = String(req.params.id || "").trim();
   const reg = id ? await Registration.findById(id).lean() : null;
-  res.render("pages/admin/registration_detail", { tournament: TOURNAMENT, reg, divisionLabelOrValue });
+  let paymentFlash = "";
+  const p = String(req.query.payment || "").trim();
+  if (p === "sent") paymentFlash = "已發送付款電郵（內附 Stripe 付款連結）。";
+  if (p === "fail") paymentFlash = `發送失敗：${String(req.query.msg || "").trim()}`;
+  res.render("pages/admin/registration_detail", {
+    tournament: TOURNAMENT,
+    reg,
+    divisionLabelOrValue,
+    duprOrNR,
+    divisionFeeCents,
+    stripePaymentOk: stripeConfigured(),
+    paymentFlash
+  });
+});
+
+app.post("/admin/registration/:id/send-payment-email", requireAdmin, async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const reg = id ? await Registration.findById(id).lean() : null;
+  if (!reg) return res.redirect("/admin");
+  try {
+    await createCheckoutSessionAndSendPaymentEmail(reg, req);
+    return res.redirect(`/admin/registration/${encodeURIComponent(id)}?payment=sent`);
+  } catch (e) {
+    const msg = encodeURIComponent(String(e && e.message ? e.message : e || "error"));
+    return res.redirect(`/admin/registration/${encodeURIComponent(id)}?payment=fail&msg=${msg}`);
+  }
 });
 
 // Admin: check email sending status
@@ -482,6 +700,64 @@ app.get("/admin/registration/:id/email-check", requireAdmin, async (req, res) =>
   });
 });
 
+// Admin: batch payment emails (Stripe Checkout links)
+app.get("/admin/payment-batch", requireAdmin, async (req, res) => {
+  const unpaidCount = await Registration.countDocuments({ paymentStatus: { $ne: "paid" } });
+  const stripeOk = stripeConfigured();
+  const pub = await appPublicBaseUrl(req);
+  const webhookUrl = `${pub}/stripe/webhook`;
+  res.render("pages/admin/payment_batch", {
+    tournament: TOURNAMENT,
+    stripeOk,
+    unpaidCount,
+    webhookUrl,
+    result: null
+  });
+});
+
+app.post("/admin/payment-batch/send", requireAdmin, async (req, res) => {
+  const sendPaidToo = String(req.body.sendPaidToo || "").trim() === "1";
+  const stripeOk = stripeConfigured();
+  const pub = await appPublicBaseUrl(req);
+  const webhookUrl = `${pub}/stripe/webhook`;
+  const result = { ok: 0, fail: 0, lines: [] };
+
+  if (!stripeOk) {
+    result.lines.push("Stripe 未設定：請設定 STRIPE_SECRET_KEY");
+    const unpaidCount = await Registration.countDocuments({ paymentStatus: { $ne: "paid" } });
+    return res.render("pages/admin/payment_batch", {
+      tournament: TOURNAMENT,
+      stripeOk,
+      unpaidCount,
+      webhookUrl,
+      result
+    });
+  }
+
+  const query = sendPaidToo ? {} : { paymentStatus: { $ne: "paid" } };
+  const regs = await Registration.find(query).sort({ createdAt: 1 }).lean();
+
+  for (const r of regs) {
+    try {
+      await createCheckoutSessionAndSendPaymentEmail(r, req);
+      result.ok += 1;
+      result.lines.push(`✓ ${r.email}｜${divisionLabelOrValue(r.division)}`);
+    } catch (e) {
+      result.fail += 1;
+      result.lines.push(`✗ ${r.email}｜${String(e && e.message ? e.message : e)}`);
+    }
+  }
+
+  const unpaidCount = await Registration.countDocuments({ paymentStatus: { $ne: "paid" } });
+  return res.render("pages/admin/payment_batch", {
+    tournament: TOURNAMENT,
+    stripeOk,
+    unpaidCount,
+    webhookUrl,
+    result
+  });
+});
+
 // Admin: export registrations to XLSX
 app.get("/admin/export.xlsx", requireAdmin, async (req, res) => {
   const rows = await Registration.find({}).sort({ createdAt: -1 }).lean();
@@ -493,14 +769,17 @@ app.get("/admin/export.xlsx", requireAdmin, async (req, res) => {
     電話: r.phone || "",
     推廣碼: r.bocReferralCode || "",
     組別: divisionLabelOrValue(r.division),
+    付款狀態:
+      r.paymentStatus === "paid" ? "已付款" : r.paymentStatus === "pending" ? "待付款" : "未付款",
+    付款時間: r.paidAt ? new Date(r.paidAt).toLocaleString("zh-HK", { hour12: false }) : "",
     球員1姓名: r.player1?.name || "",
     球員1出生日期: r.player1?.dateOfBirth ? new Date(r.player1.dateOfBirth).toISOString().slice(0, 10) : "",
     球員1性別: r.player1?.gender === "male" ? "男" : (r.player1?.gender === "female" ? "女" : ""),
-    球員1DUPR: r.player1?.duprNR ? "NR" : (r.player1?.dupr != null ? Number(r.player1.dupr).toFixed(2) : ""),
+    球員1DUPR: duprOrNR(r.player1),
     球員2姓名: r.player2?.name || "",
     球員2出生日期: r.player2?.dateOfBirth ? new Date(r.player2.dateOfBirth).toISOString().slice(0, 10) : "",
     球員2性別: r.player2?.gender === "male" ? "男" : (r.player2?.gender === "female" ? "女" : ""),
-    球員2DUPR: r.player2?.duprNR ? "NR" : (r.player2?.dupr != null ? Number(r.player2.dupr).toFixed(2) : ""),
+    球員2DUPR: duprOrNR(r.player2),
     備註: r.notes || "",
     電郵通知狀態: r.emailSentAt ? "已發送" : (r.emailSendError ? "發送失敗" : "待發送"),
     電郵發送時間: r.emailSentAt ? new Date(r.emailSentAt).toLocaleString("zh-HK", { hour12: false }) : "",

@@ -6,7 +6,8 @@
     "dev": "nodemon server.js",
     "build:css": "tailwindcss build -c ./tailwind.config.js -i ./src/styles.css -o ./public/styles.css",
     "watch:css": "tailwindcss build -c ./tailwind.config.js -i ./src/styles.css -o ./public/styles.css --watch",
-    "start": "node server.js"
+    "start": "node server.js",
+    "email:demo": "node scripts/send-email-demo.js"
   },
   "keywords": [],
   "author": "",

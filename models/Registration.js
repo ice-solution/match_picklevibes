@@ -6,6 +6,7 @@ const PlayerSchema = new mongoose.Schema(
     dateOfBirth: { type: Date, required: true },
     gender: { type: String, required: true, enum: ["male", "female"] },
     duprNR: { type: Boolean, required: true, default: false },
+    kidNoDuprScore: { type: Boolean, required: true, default: false },
     dupr: { type: Number, default: null, min: 2, max: 4 }
   },
   { _id: false }
@@ -22,7 +23,7 @@ const RegistrationSchema = new mongoose.Schema(
       maxlength: 254
     },
     phone: { type: String, required: true, trim: true, maxlength: 30 },
-    bocReferralCode: { type: String, required: true, trim: true, maxlength: 64 },
+    bocReferralCode: { type: String, required: false, trim: true, maxlength: 64, default: "" },
 
     player1: { type: PlayerSchema, required: true },
     player2: { type: PlayerSchema, required: true },
@@ -37,7 +38,17 @@ const RegistrationSchema = new mongoose.Schema(
     consentAcceptedAt: { type: Date, default: null },
 
     emailSentAt: { type: Date, default: null },
-    emailSendError: { type: String, default: "" }
+    emailSendError: { type: String, default: "" },
+
+    paymentStatus: {
+      type: String,
+      enum: ["unpaid", "pending", "paid"],
+      default: "unpaid",
+      index: true
+    },
+    paidAt: { type: Date, default: null },
+    latestStripeCheckoutSessionId: { type: String, trim: true, default: "" },
+    latestPaymentAmountCents: { type: Number, default: null }
   },
   { timestamps: true }
 );

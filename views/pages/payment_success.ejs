@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-HK">
+  <head>
+    <%- include("../partials/head", { title: "付款已提交 - " + tournament.name, tournament }) %>
+    <style>
+      body { font-family: "Noto Sans TC", system-ui, -apple-system, sans-serif; }
+    </style>
+  </head>
+  <body>
+    <%- include("../partials/nav", { tournament }) %>
+    <main class="mx-auto max-w-xl px-4 py-12">
+      <div class="rounded-3xl bg-white p-6 ring-1 ring-black/5 md:p-8">
+        <div class="text-xl font-extrabold text-pickle-ink">感謝付款</div>
+        <p class="mt-3 text-sm leading-relaxed text-black/70">
+          如你已於 Stripe 完成付款，系統會稍後更新狀態；請保留 Stripe 收據。
+        </p>
+        <% if (sessionId) { %>
+          <div class="mt-4 rounded-2xl bg-pickle-mist p-4 text-xs text-black/60 ring-1 ring-black/5">
+            Session：<span class="break-all font-mono text-black/70"><%= sessionId %></span>
+          </div>
+        <% } %>
+        <div class="mt-6">
+          <a href="/" class="inline-flex rounded-2xl bg-pickle-teal px-5 py-3 text-sm font-extrabold text-white hover:brightness-95">返回首頁</a>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>
