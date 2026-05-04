@@ -79,21 +79,53 @@
                 <% } %>
               </div>
               <% if (typeof stripePaymentOk !== "undefined" && stripePaymentOk) { %>
-                <form method="post" action="/admin/registration/<%= reg._id %>/send-payment-email" class="shrink-0">
+                <div class="flex shrink-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+                  <form method="post" action="/admin/registration/<%= reg._id %>/send-payment-email" class="shrink-0">
+                    <button
+                      type="submit"
+                      class="w-full rounded-2xl bg-pickle-pink px-4 py-3 text-xs font-extrabold text-white shadow-sm hover:brightness-95 sm:w-auto"
+                    >
+                      發送付款電郵（Stripe）
+                    </button>
+                  </form>
                   <button
-                    type="submit"
-                    class="rounded-2xl bg-pickle-pink px-4 py-3 text-xs font-extrabold text-white shadow-sm hover:brightness-95"
+                    type="button"
+                    id="btnCheckoutPreview"
+                    class="w-full rounded-2xl bg-white px-4 py-3 text-xs font-extrabold text-pickle-ink ring-1 ring-black/15 hover:bg-black/[0.03] sm:w-auto"
                   >
-                    發送付款電郵（Stripe）
+                    產生付款連結（測試，不寄電郵）
                   </button>
-                </form>
+                </div>
               <% } else { %>
                 <div class="text-xs font-semibold text-red-700">Stripe 未設定：請設定 STRIPE_SECRET_KEY</div>
               <% } %>
             </div>
-            <p class="mt-3 text-xs text-black/55">
-              系統會建立 Stripe Checkout Session、寫入付款交易紀錄，並以電郵寄出付款連結。
-            </p>
+            <% if (typeof stripePaymentOk !== "undefined" && stripePaymentOk) { %>
+              <p class="mt-3 text-xs text-black/55">
+                「發送付款電郵」會建立 Stripe Checkout Session、寫入付款交易紀錄，並以電郵寄出連結。「產生付款連結（測試）」只建立 Session 與紀錄、<b>不寄電郵</b>，方便你用 Stripe 測試卡開啟連結驗證；每次按鈕都會新增一筆待付款 Session。
+              </p>
+              <div id="checkoutPreviewArea" class="mt-4 hidden rounded-2xl border border-pickle-teal/30 bg-pickle-mist/80 p-4 ring-1 ring-pickle-teal/20">
+                <div class="text-xs font-extrabold text-pickle-ink">Stripe 結帳連結（測試）</div>
+                <p class="mt-2 break-all font-mono text-[11px] leading-relaxed text-black/80" id="checkoutPreviewUrl"></p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <a
+                    id="checkoutPreviewOpen"
+                    href="#"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center justify-center rounded-xl bg-pickle-teal px-3 py-2 text-xs font-extrabold text-white hover:brightness-95"
+                    >新分頁開啟</a>
+                  <button
+                    type="button"
+                    id="checkoutPreviewCopy"
+                    class="rounded-xl bg-white px-3 py-2 text-xs font-extrabold text-pickle-ink ring-1 ring-black/10 hover:bg-black/5"
+                  >
+                    複製連結
+                  </button>
+                </div>
+                <p class="mt-2 text-xs text-black/55" id="checkoutPreviewNote"></p>
+              </div>
+            <% } %>
           </div>
 
           <div class="mt-6 grid gap-4 md:grid-cols-2">
@@ -174,6 +206,64 @@
         </div>
       <% } %>
     </main>
+    <% if (reg && typeof stripePaymentOk !== "undefined" && stripePaymentOk) { %>
+      <script>
+        (function () {
+          const regId = "<%= String(reg._id) %>";
+          const btn = document.getElementById("btnCheckoutPreview");
+          const area = document.getElementById("checkoutPreviewArea");
+          const urlEl = document.getElementById("checkoutPreviewUrl");
+          const openA = document.getElementById("checkoutPreviewOpen");
+          const copyBtn = document.getElementById("checkoutPreviewCopy");
+          const noteEl = document.getElementById("checkoutPreviewNote");
+          if (!btn || !area) return;
+          btn.addEventListener("click", async function () {
+            btn.disabled = true;
+            const old = btn.textContent;
+            btn.textContent = "建立中…";
+            try {
+              const res = await fetch("/admin/registration/" + encodeURIComponent(regId) + "/checkout-preview", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { Accept: "application/json" }
+              });
+              const data = await res.json().catch(function () {
+                return null;
+              });
+              if (!data || !data.ok) {
+                alert((data && data.message) || "建立失敗");
+                return;
+              }
+              urlEl.textContent = data.checkoutUrl || "";
+              openA.href = data.checkoutUrl || "#";
+              noteEl.textContent = data.note || "";
+              area.classList.remove("hidden");
+            } catch (e) {
+              alert("建立失敗");
+            } finally {
+              btn.textContent = old;
+              btn.disabled = false;
+            }
+          });
+          if (copyBtn && urlEl) {
+            copyBtn.addEventListener("click", function () {
+              const t = urlEl.textContent || "";
+              if (!t) return;
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(t).then(function () {
+                  copyBtn.textContent = "已複製";
+                  setTimeout(function () {
+                    copyBtn.textContent = "複製連結";
+                  }, 2000);
+                });
+              } else {
+                prompt("複製以下連結：", t);
+              }
+            });
+          }
+        })();
+      </script>
+    <% } %>
   </body>
 </html>
 

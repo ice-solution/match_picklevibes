@@ -193,7 +193,8 @@ async function appPublicBaseUrl(req) {
   return baseUrl(req);
 }
 
-async function createCheckoutSessionAndSendPaymentEmail(regLean, req) {
+/** 建立 Stripe Checkout Session 並寫入交易／報名紀錄（不寄電郵） */
+async function createCheckoutSessionForRegistration(regLean, req) {
   const stripe = stripeClient();
   if (!stripe) throw new Error("Stripe 未設定（缺少 STRIPE_SECRET_KEY）");
   const pub = await appPublicBaseUrl(req);
@@ -240,21 +241,31 @@ async function createCheckoutSessionAndSendPaymentEmail(regLean, req) {
     latestPaymentAmountCents: amount
   });
 
+  return {
+    session,
+    checkoutUrl: session.url || "",
+    amountCents: amount,
+    currency,
+    pub
+  };
+}
+
+async function sendCheckoutPaymentEmailToRegistrant(regLean, stripeCheckoutSessionId, checkoutUrl, amountCents, pub) {
   try {
     await sendPaymentRequestEmail({
       tournament: TOURNAMENT,
       reg: regLean,
-      checkoutUrl: session.url,
-      amountCents: amount,
+      checkoutUrl,
+      amountCents,
       publicBaseUrl: pub
     });
     await PaymentTransaction.findOneAndUpdate(
-      { stripeCheckoutSessionId: session.id },
+      { stripeCheckoutSessionId },
       { paymentEmailSentAt: new Date(), paymentEmailSendError: "" }
     );
   } catch (emailErr) {
     await PaymentTransaction.findOneAndUpdate(
-      { stripeCheckoutSessionId: session.id },
+      { stripeCheckoutSessionId },
       {
         paymentEmailSendError: String(
           emailErr && emailErr.message ? emailErr.message : emailErr || "email send failed"
@@ -263,7 +274,11 @@ async function createCheckoutSessionAndSendPaymentEmail(regLean, req) {
     );
     throw emailErr;
   }
+}
 
+async function createCheckoutSessionAndSendPaymentEmail(regLean, req) {
+  const { session, checkoutUrl, amountCents, pub } = await createCheckoutSessionForRegistration(regLean, req);
+  await sendCheckoutPaymentEmailToRegistrant(regLean, session.id, checkoutUrl, amountCents, pub);
   return session;
 }
 
@@ -624,11 +639,16 @@ app.get("/admin", requireAdmin, async (req, res) => {
     Registration.countDocuments({})
   ]);
 
+  const paymentEmailBatchFlash = req.session.paymentEmailBatchFlash || null;
+  if (req.session.paymentEmailBatchFlash) delete req.session.paymentEmailBatchFlash;
+
   res.render("pages/admin/registrations", {
     tournament: TOURNAMENT,
     items,
     divisionLabelOrValue,
     duprOrNR,
+    stripePaymentOk: stripeConfigured(),
+    paymentEmailBatchFlash,
     page,
     pageSize,
     total
@@ -665,6 +685,76 @@ app.post("/admin/registration/:id/send-payment-email", requireAdmin, async (req,
     const msg = encodeURIComponent(String(e && e.message ? e.message : e || "error"));
     return res.redirect(`/admin/registration/${encodeURIComponent(id)}?payment=fail&msg=${msg}`);
   }
+});
+
+/** 僅建立 Stripe Checkout（不寄電郵），供後台測試連結；回傳 JSON */
+app.post("/admin/registration/:id/checkout-preview", requireAdmin, async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const reg = id ? await Registration.findById(id).lean() : null;
+  if (!reg) return res.status(404).json({ ok: false, message: "找不到報名" });
+  if (reg.paymentStatus === "paid") {
+    return res.status(400).json({ ok: false, message: "此報名已標記為已付款" });
+  }
+  if (!stripeConfigured()) {
+    return res.status(400).json({ ok: false, message: "Stripe 未設定（缺少 STRIPE_SECRET_KEY）" });
+  }
+  try {
+    const { session, checkoutUrl, amountCents, pub } = await createCheckoutSessionForRegistration(reg, req);
+    return res.json({
+      ok: true,
+      checkoutUrl,
+      sessionId: session.id,
+      amountCents,
+      publicBaseUrl: pub,
+      note: "已建立 Session 並寫入資料庫，但未寄出電郵。請使用下方連結以測試卡付款；每次按鈕會產生一筆新的待付款 Session。"
+    });
+  } catch (e) {
+    return res.status(500).json({
+      ok: false,
+      message: String(e && e.message ? e.message : e || "error")
+    });
+  }
+});
+
+/** 列表頁勾選多筆後，逐筆寄送付款電郵（各建立一筆 Checkout） */
+app.post("/admin/registrations/send-payment-emails", requireAdmin, async (req, res) => {
+  let raw = req.body.registrationIds;
+  if (raw == null) raw = [];
+  if (!Array.isArray(raw)) raw = [raw];
+  const ids = raw.map((x) => String(x || "").trim()).filter(Boolean);
+
+  if (!ids.length) {
+    req.session.paymentEmailBatchFlash = { lines: ["請至少勾選一筆報名。"] };
+    return res.redirect("/admin");
+  }
+
+  if (!stripeConfigured()) {
+    req.session.paymentEmailBatchFlash = { lines: ["Stripe 未設定：請設定 STRIPE_SECRET_KEY"] };
+    return res.redirect("/admin");
+  }
+
+  const lines = [];
+  for (const id of ids) {
+    const reg = await Registration.findById(id).lean();
+    if (!reg) {
+      lines.push(`✗（${id}）：找不到報名`);
+      continue;
+    }
+    const label = `${reg.fullName || ""}｜${reg.email || ""}`;
+    if (reg.paymentStatus === "paid") {
+      lines.push(`○ ${label}：已付款，略過`);
+      continue;
+    }
+    try {
+      await createCheckoutSessionAndSendPaymentEmail(reg, req);
+      lines.push(`✓ ${label}｜${divisionLabelOrValue(reg.division)}`);
+    } catch (e) {
+      lines.push(`✗ ${label}：${String((e && e.message) || e || "error")}`);
+    }
+  }
+
+  req.session.paymentEmailBatchFlash = { lines };
+  return res.redirect("/admin");
 });
 
 // Admin: check email sending status
