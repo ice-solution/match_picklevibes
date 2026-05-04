@@ -96,9 +96,6 @@
               class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
             >
               <option value="">請選擇</option>
-              <% const counts = typeof divisionCounts !== 'undefined' ? (divisionCounts || {}) : {}; %>
-              <% const capOf = typeof divisionCapacity === 'function' ? divisionCapacity : function () { return 6; }; %>
-              <% function full(v) { return (counts[v] || 0) >= capOf(v); } %>
 
               <optgroup label="── 30+ 組別（第 1–6 項）──">
                 <% const d1 = "1 - 30+ - 3.0- - 男雙"; %>
@@ -107,12 +104,12 @@
                 <% const d4 = "4 - 30+ - 3.0+ - 男雙"; %>
                 <% const d5 = "5 - 30+ - 3.0+ - 女雙"; %>
                 <% const d6 = "6 - 30+ - 3.0+ - 混雙"; %>
-                <option value="<%= d1 %>" data-fee-hkd="788" <%= values.division === d1 ? 'selected' : '' %> <%= full(d1) ? 'disabled' : '' %>>30歲以上 DUPR 3.0以下 男雙（24/5（日）Day2｜HK$788/組）<%= full(d1) ? '（已滿）' : '' %></option>
-                <option value="<%= d2 %>" data-fee-hkd="788" <%= values.division === d2 ? 'selected' : '' %> <%= full(d2) ? 'disabled' : '' %>>30歲以上 DUPR 3.0以下 女雙（24/5（日）Day2｜HK$788/組）<%= full(d2) ? '（已滿）' : '' %></option>
-                <option value="<%= d3 %>" data-fee-hkd="788" <%= values.division === d3 ? 'selected' : '' %> <%= full(d3) ? 'disabled' : '' %>>30歲以上 DUPR 3.0以下 混雙（24/5（日）Day2｜HK$788/組）<%= full(d3) ? '（已滿）' : '' %></option>
-                <option value="<%= d4 %>" data-fee-hkd="788" <%= values.division === d4 ? 'selected' : '' %> <%= full(d4) ? 'disabled' : '' %>>30歲以上 DUPR 3.0+ 男雙（24/5（日）Day2｜HK$788/組）<%= full(d4) ? '（已滿）' : '' %></option>
-                <option value="<%= d5 %>" data-fee-hkd="788" <%= values.division === d5 ? 'selected' : '' %> <%= full(d5) ? 'disabled' : '' %>>30歲以上 DUPR 3.0+ 女雙（24/5（日）Day2｜HK$788/組）<%= full(d5) ? '（已滿）' : '' %></option>
-                <option value="<%= d6 %>" data-fee-hkd="788" <%= values.division === d6 ? 'selected' : '' %> <%= full(d6) ? 'disabled' : '' %>>30歲以上 DUPR 3.0+ 混雙（24/5（日）Day2｜HK$788/組）<%= full(d6) ? '（已滿）' : '' %></option>
+                <option value="<%= d1 %>" data-fee-hkd="788" <%= values.division === d1 ? 'selected' : '' %>>30歲以上 DUPR 3.0以下 男雙（24/5（日）Day2｜HK$788/組）</option>
+                <option value="<%= d2 %>" data-fee-hkd="788" <%= values.division === d2 ? 'selected' : '' %>>30歲以上 DUPR 3.0以下 女雙（24/5（日）Day2｜HK$788/組）</option>
+                <option value="<%= d3 %>" data-fee-hkd="788" <%= values.division === d3 ? 'selected' : '' %>>30歲以上 DUPR 3.0以下 混雙（24/5（日）Day2｜HK$788/組）</option>
+                <option value="<%= d4 %>" data-fee-hkd="788" <%= values.division === d4 ? 'selected' : '' %>>30歲以上 DUPR 3.0+ 男雙（24/5（日）Day2｜HK$788/組）</option>
+                <option value="<%= d5 %>" data-fee-hkd="788" <%= values.division === d5 ? 'selected' : '' %>>30歲以上 DUPR 3.0+ 女雙（24/5（日）Day2｜HK$788/組）</option>
+                <option value="<%= d6 %>" data-fee-hkd="788" <%= values.division === d6 ? 'selected' : '' %>>30歲以上 DUPR 3.0+ 混雙（24/5（日）Day2｜HK$788/組）</option>
               </optgroup>
 
               <optgroup label="── 50+ 組別（第 7–12 項）──">
@@ -122,21 +119,21 @@
                 <% const d10 = "10 - 50+ - 3.0+ - 男雙"; %>
                 <% const d11 = "11 - 50+ - 3.0+ - 女雙"; %>
                 <% const d12 = "12 - 50+ - 3.0+ - 混雙"; %>
-                <option value="<%= d7 %>" data-fee-hkd="788" <%= values.division === d7 ? 'selected' : '' %> <%= full(d7) ? 'disabled' : '' %>>50歲以上 DUPR 3.0以下 男雙（25/5（一）Day3｜HK$788/組）<%= full(d7) ? '（已滿）' : '' %></option>
-                <option value="<%= d8 %>" data-fee-hkd="788" <%= values.division === d8 ? 'selected' : '' %> <%= full(d8) ? 'disabled' : '' %>>50歲以上 DUPR 3.0以下 女雙（25/5（一）Day3｜HK$788/組）<%= full(d8) ? '（已滿）' : '' %></option>
-                <option value="<%= d9 %>" data-fee-hkd="788" <%= values.division === d9 ? 'selected' : '' %> <%= full(d9) ? 'disabled' : '' %>>50歲以上 DUPR 3.0以下 混雙（25/5（一）Day3｜HK$788/組）<%= full(d9) ? '（已滿）' : '' %></option>
-                <option value="<%= d10 %>" data-fee-hkd="788" <%= values.division === d10 ? 'selected' : '' %> <%= full(d10) ? 'disabled' : '' %>>50歲以上 DUPR 3.0+ 男雙（25/5（一）Day3｜HK$788/組）<%= full(d10) ? '（已滿）' : '' %></option>
-                <option value="<%= d11 %>" data-fee-hkd="788" <%= values.division === d11 ? 'selected' : '' %> <%= full(d11) ? 'disabled' : '' %>>50歲以上 DUPR 3.0+ 女雙（25/5（一）Day3｜HK$788/組）<%= full(d11) ? '（已滿）' : '' %></option>
-                <option value="<%= d12 %>" data-fee-hkd="788" <%= values.division === d12 ? 'selected' : '' %> <%= full(d12) ? 'disabled' : '' %>>50歲以上 DUPR 3.0+ 混雙（25/5（一）Day3｜HK$788/組）<%= full(d12) ? '（已滿）' : '' %></option>
+                <option value="<%= d7 %>" data-fee-hkd="788" <%= values.division === d7 ? 'selected' : '' %>>50歲以上 DUPR 3.0以下 男雙（25/5（一）Day3｜HK$788/組）</option>
+                <option value="<%= d8 %>" data-fee-hkd="788" <%= values.division === d8 ? 'selected' : '' %>>50歲以上 DUPR 3.0以下 女雙（25/5（一）Day3｜HK$788/組）</option>
+                <option value="<%= d9 %>" data-fee-hkd="788" <%= values.division === d9 ? 'selected' : '' %>>50歲以上 DUPR 3.0以下 混雙（25/5（一）Day3｜HK$788/組）</option>
+                <option value="<%= d10 %>" data-fee-hkd="788" <%= values.division === d10 ? 'selected' : '' %>>50歲以上 DUPR 3.0+ 男雙（25/5（一）Day3｜HK$788/組）</option>
+                <option value="<%= d11 %>" data-fee-hkd="788" <%= values.division === d11 ? 'selected' : '' %>>50歲以上 DUPR 3.0+ 女雙（25/5（一）Day3｜HK$788/組）</option>
+                <option value="<%= d12 %>" data-fee-hkd="788" <%= values.division === d12 ? 'selected' : '' %>>50歲以上 DUPR 3.0+ 混雙（25/5（一）Day3｜HK$788/組）</option>
               </optgroup>
 
               <optgroup label="── 公開組（第 13–15 項）──">
                 <% const d13 = "13 - 公開 - - 男雙公開"; %>
                 <% const d14 = "14 - 公開 - - 女雙公開"; %>
                 <% const d15 = "15 - 公開 - - 混雙公開"; %>
-                <option value="<%= d13 %>" data-fee-hkd="788" <%= values.division === d13 ? 'selected' : '' %> <%= full(d13) ? 'disabled' : '' %>>公開組 男雙（23/5（六）Day1｜HK$788/組）<%= full(d13) ? '（已滿）' : '' %></option>
-                <option value="<%= d14 %>" data-fee-hkd="788" <%= values.division === d14 ? 'selected' : '' %> <%= full(d14) ? 'disabled' : '' %>>公開組 女雙（23/5（六）Day1｜HK$788/組）<%= full(d14) ? '（已滿）' : '' %></option>
-                <option value="<%= d15 %>" data-fee-hkd="788" <%= values.division === d15 ? 'selected' : '' %> <%= full(d15) ? 'disabled' : '' %>>公開組 混雙（23/5（六）Day1｜HK$788/組）<%= full(d15) ? '（已滿）' : '' %></option>
+                <option value="<%= d13 %>" data-fee-hkd="788" <%= values.division === d13 ? 'selected' : '' %>>公開組 男雙（23/5（六）Day1｜HK$788/組）</option>
+                <option value="<%= d14 %>" data-fee-hkd="788" <%= values.division === d14 ? 'selected' : '' %>>公開組 女雙（23/5（六）Day1｜HK$788/組）</option>
+                <option value="<%= d15 %>" data-fee-hkd="788" <%= values.division === d15 ? 'selected' : '' %>>公開組 混雙（23/5（六）Day1｜HK$788/組）</option>
               </optgroup>
 
               <optgroup label="── 小朋友組（12歲以下）（第 16–19 項）──">
@@ -144,15 +141,15 @@
                 <% const d17 = "17 - 小朋友 - U10 - -"; %>
                 <% const d18 = "18 - 小朋友 - U12 - -"; %>
                 <% const d19 = "19 - 小朋友 - U14 - -"; %>
-                <option value="<%= d16 %>" data-fee-hkd="688" <%= values.division === d16 ? 'selected' : '' %> <%= full(d16) ? 'disabled' : '' %>>小朋友 U8（12歲以下）（23/5（六）Day1｜HK$688/組）<%= full(d16) ? '（已滿）' : '' %></option>
-                <option value="<%= d17 %>" data-fee-hkd="688" <%= values.division === d17 ? 'selected' : '' %> <%= full(d17) ? 'disabled' : '' %>>小朋友 U10（12歲以下）（23/5（六）Day1｜HK$688/組）<%= full(d17) ? '（已滿）' : '' %></option>
-                <option value="<%= d18 %>" data-fee-hkd="688" <%= values.division === d18 ? 'selected' : '' %> <%= full(d18) ? 'disabled' : '' %>>小朋友 U12（12歲以下）（23/5（六）Day1｜HK$688/組）<%= full(d18) ? '（已滿）' : '' %></option>
-                <option value="<%= d19 %>" data-fee-hkd="688" <%= values.division === d19 ? 'selected' : '' %> <%= full(d19) ? 'disabled' : '' %>>小朋友 U14（12歲以下）（23/5（六）Day1｜HK$688/組）<%= full(d19) ? '（已滿）' : '' %></option>
+                <option value="<%= d16 %>" data-fee-hkd="688" <%= values.division === d16 ? 'selected' : '' %>>小朋友 U8（12歲以下）（23/5（六）Day1｜HK$688/組）</option>
+                <option value="<%= d17 %>" data-fee-hkd="688" <%= values.division === d17 ? 'selected' : '' %>>小朋友 U10（12歲以下）（23/5（六）Day1｜HK$688/組）</option>
+                <option value="<%= d18 %>" data-fee-hkd="688" <%= values.division === d18 ? 'selected' : '' %>>小朋友 U12（12歲以下）（23/5（六）Day1｜HK$688/組）</option>
+                <option value="<%= d19 %>" data-fee-hkd="688" <%= values.division === d19 ? 'selected' : '' %>>小朋友 U14（12歲以下）（23/5（六）Day1｜HK$688/組）</option>
               </optgroup>
 
               <optgroup label="── 親子組（第 20 項）──">
                 <% const d20 = "20 - 親子 - - 親子賽"; %>
-                <option value="<%= d20 %>" data-fee-hkd="788" <%= values.division === d20 ? 'selected' : '' %> <%= full(d20) ? 'disabled' : '' %>>親子組 親子賽（23/5（六）Day1｜HK$788/組）<%= full(d20) ? '（已滿）' : '' %></option>
+                <option value="<%= d20 %>" data-fee-hkd="788" <%= values.division === d20 ? 'selected' : '' %>>親子組 親子賽（23/5（六）Day1｜HK$788/組）</option>
               </optgroup>
             </select>
             <% if (errors.division) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.division %></div><% } %>

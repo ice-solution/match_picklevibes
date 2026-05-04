@@ -8,7 +8,7 @@ const XLSX = require("xlsx");
 const Registration = require("./models/Registration");
 const PaymentTransaction = require("./models/PaymentTransaction");
 const { sendRegistrationEmail, sendPaymentRequestEmail, duprOrNR } = require("./lib/email");
-const { divisionLabelOrValue, divisionCapacity, divisionFeeCents } = require("./lib/divisions");
+const { divisionLabelOrValue, divisionFeeCents } = require("./lib/divisions");
 const {
   GENDER,
   parseDuprInput,
@@ -313,18 +313,8 @@ function renderApply(res, locals) {
   });
 }
 
-async function getDivisionCounts() {
-  const rows = await Registration.aggregate([
-    { $group: { _id: "$division", count: { $sum: 1 } } }
-  ]);
-  const out = {};
-  for (const r of rows) out[String(r._id || "").trim()] = Number(r.count || 0);
-  return out;
-}
-
 async function renderApplyWithStats(res, locals) {
-  const divisionCounts = await getDivisionCounts();
-  return renderApply(res, { divisionCounts, divisionCapacity, ...locals });
+  return renderApply(res, locals);
 }
 
 app.get("/", (req, res) => {
@@ -499,17 +489,6 @@ app.post("/apply", async (req, res) => {
   }
 
   try {
-    const cap = divisionCapacity(values.division);
-    const current = await Registration.countDocuments({ division: values.division });
-    if (current >= cap) {
-      return renderApplyWithStats(res.status(400), {
-        values,
-        errors: { ...errors, division: "該組別名額已滿，請選擇其他組別" },
-        errorList: [],
-        cancelled: false
-      });
-    }
-
     const doc = {
       fullName: values.fullName,
       email: values.email,
