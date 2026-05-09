@@ -32,13 +32,11 @@
       <% const showPayPick = typeof stripePaymentOk !== "undefined" && stripePaymentOk; %>
       <% const tableColspan = showPayPick ? 12 : 11; %>
       <form
-        id="bulkPayForm"
+        id="bulkActionForm"
         method="post"
         action="/admin/registrations/send-payment-emails"
-        class="hidden"
-        aria-hidden="true"
-        onsubmit="var n=document.querySelectorAll('.row-pay-cb:checked').length;if(!n){alert('請至少勾選一筆未付款報名。');return false;}return confirm('確定對已勾選的 '+n+' 筆寄出付款電郵（各建立 Stripe Checkout）？');"
-      ></form>
+        onsubmit="var n=document.querySelectorAll('.row-pay-cb:checked').length;if(!n){alert('請至少勾選一筆報名。');return false;}return true;"
+      >
 
       <div class="flex items-center justify-between gap-3">
         <div class="text-sm text-black/60">
@@ -48,10 +46,19 @@
           <% if (showPayPick) { %>
             <button
               type="submit"
-              form="bulkPayForm"
+              formaction="/admin/registrations/send-payment-emails"
               class="rounded-xl bg-pickle-pink px-3 py-2 text-sm font-extrabold text-white shadow-sm hover:brightness-95"
+              onclick="var n=document.querySelectorAll('.row-pay-cb:checked').length;return confirm('確定對已勾選的 '+n+' 筆寄出付款電郵？');"
             >
               對勾選者發送付款電郵
+            </button>
+            <button
+              type="submit"
+              formaction="/admin/registrations/send-payment-reminders"
+              class="rounded-xl bg-white px-3 py-2 text-sm font-extrabold text-pickle-ink ring-1 ring-black/10 hover:bg-black/5"
+              onclick="var n=document.querySelectorAll('.row-pay-cb:checked').length;return confirm('確定對已勾選的 '+n+' 筆寄出付款提醒電郵？');"
+            >
+              對勾選者發送付款提醒
             </button>
           <% } %>
           <a
@@ -74,6 +81,16 @@
           <div class="font-extrabold text-pickle-ink">批次付款電郵結果</div>
           <ul class="mt-2 list-disc space-y-1 pl-5 text-xs">
             <% paymentEmailBatchFlash.lines.forEach(function (line) { %>
+              <li><%= line %></li>
+            <% }); %>
+          </ul>
+        </div>
+      <% } %>
+      <% if (paymentReminderBatchFlash && paymentReminderBatchFlash.lines && paymentReminderBatchFlash.lines.length) { %>
+        <div class="mt-4 rounded-2xl bg-pickle-mist p-4 text-sm text-black/80 ring-1 ring-black/5">
+          <div class="font-extrabold text-pickle-ink">批次付款提醒結果</div>
+          <ul class="mt-2 list-disc space-y-1 pl-5 text-xs">
+            <% paymentReminderBatchFlash.lines.forEach(function (line) { %>
               <li><%= line %></li>
             <% }); %>
           </ul>
@@ -113,7 +130,6 @@
                         type="checkbox"
                         name="registrationIds"
                         value="<%= r._id %>"
-                        form="bulkPayForm"
                         class="row-pay-cb h-4 w-4 rounded border-black/20 text-pickle-teal"
                         <%= paidRow ? "disabled" : "" %>
                         data-paid="<%= paidRow ? "1" : "0" %>"
@@ -192,6 +208,7 @@
           </a>
         </div>
       </div>
+      </form>
     </main>
 
     <script>

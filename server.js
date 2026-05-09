@@ -2,12 +2,13 @@ const path = require("path");
 const express = require("express");
 const mongoose = require("mongoose");
 const session = require("express-session");
+const crypto = require("crypto");
 require("dotenv").config();
 const XLSX = require("xlsx");
 
 const Registration = require("./models/Registration");
 const PaymentTransaction = require("./models/PaymentTransaction");
-const { sendRegistrationEmail, sendPaymentRequestEmail, duprOrNR } = require("./lib/email");
+const { sendRegistrationEmail, sendPaymentRequestEmail, sendPaymentReminderEmail, duprOrNR } = require("./lib/email");
 const { divisionLabelOrValue, divisionFeeCents } = require("./lib/divisions");
 const {
   GENDER,
@@ -185,6 +186,76 @@ function adminConfigured() {
   return Boolean(ADMIN_USER && ADMIN_PASS);
 }
 
+function parseEnvDate(value) {
+  const s = String(value || "").trim();
+  if (!s) return null;
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+/**
+ * Stripe Checkout Session 的 expires_at 有上限（通常最長約 24 小時）。
+ * 我們會以「付款截止時間」為上限，並同時不超過 Stripe 允許的最長有效期。
+ */
+function computeCheckoutExpiresAtUnixSec() {
+  const end = parseEnvDate(process.env.PAYMENT_WINDOW_END_AT);
+  if (!end) return null;
+  const now = Date.now();
+  // Stripe 限制：最長約 24 小時；保守少 60 秒避免邊界問題
+  const stripeMaxMs = 24 * 60 * 60 * 1000 - 60 * 1000;
+  const maxAllowed = new Date(now + stripeMaxMs);
+  const chosen = end.getTime() < maxAllowed.getTime() ? end : maxAllowed;
+  // 必須是未來時間才設定，否則不傳 expires_at
+  if (chosen.getTime() <= now + 30 * 1000) return null;
+  return Math.floor(chosen.getTime() / 1000);
+}
+
+function randomToken() {
+  // 24 bytes -> 32 chars base64url-ish after replacing; short and hard to guess
+  return crypto
+    .randomBytes(24)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+async function ensurePaymentLinkToken(regId) {
+  const reg = await Registration.findById(regId).lean();
+  if (!reg) return { ok: false, reg: null };
+  if (reg.paymentLinkToken && String(reg.paymentLinkToken).trim()) {
+    return { ok: true, reg };
+  }
+  // 寫入 token（若罕見碰撞，重試一次）
+  for (let i = 0; i < 2; i++) {
+    const token = randomToken();
+    const updated = await Registration.findOneAndUpdate(
+      { _id: regId, $or: [{ paymentLinkToken: { $exists: false } }, { paymentLinkToken: "" }] },
+      { $set: { paymentLinkToken: token, paymentLinkTokenCreatedAt: new Date() } },
+      { new: true }
+    ).lean();
+    if (updated && updated.paymentLinkToken) return { ok: true, reg: updated };
+  }
+  // 若因競態未更新到，就再讀一次
+  const reread = await Registration.findById(regId).lean();
+  if (reread && reread.paymentLinkToken) return { ok: true, reg: reread };
+  return { ok: false, reg: reread || reg };
+}
+
+async function paymentLinkUrlForRegistration(regId, req) {
+  const pub = await appPublicBaseUrl(req);
+  const { ok, reg } = await ensurePaymentLinkToken(regId);
+  if (!ok || !reg || !reg.paymentLinkToken) {
+    throw new Error("無法建立付款連結 token");
+  }
+  return {
+    pub,
+    token: String(reg.paymentLinkToken),
+    url: `${pub}/pay/${encodeURIComponent(String(reg.paymentLinkToken))}`
+  };
+}
+
 async function appPublicBaseUrl(req) {
   const env = String(process.env.APP_BASE_URL || "")
     .trim()
@@ -203,6 +274,7 @@ async function createCheckoutSessionForRegistration(regLean, req) {
     .toLowerCase();
   const amount = divisionFeeCents(regLean.division);
 
+  const expiresAt = computeCheckoutExpiresAtUnixSec();
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: regLean.email,
@@ -223,7 +295,8 @@ async function createCheckoutSessionForRegistration(regLean, req) {
     cancel_url: `${pub}/payment/cancel?rid=${regLean._id}`,
     metadata: {
       registrationId: String(regLean._id)
-    }
+    },
+    ...(expiresAt ? { expires_at: expiresAt } : {})
   });
 
   await PaymentTransaction.create({
@@ -248,6 +321,30 @@ async function createCheckoutSessionForRegistration(regLean, req) {
     currency,
     pub
   };
+}
+
+async function sendPaymentLinkEmailToRegistrant(regLean, req) {
+  const amountCents = divisionFeeCents(regLean.division);
+  const { url, pub } = await paymentLinkUrlForRegistration(regLean._id, req);
+  await sendPaymentRequestEmail({
+    tournament: TOURNAMENT,
+    reg: regLean,
+    checkoutUrl: url, // 這裡改成「長效付款連結」，點入才建立 Stripe Session
+    amountCents,
+    publicBaseUrl: pub
+  });
+}
+
+async function sendPaymentReminderEmailToRegistrant(regLean, req) {
+  const amountCents = divisionFeeCents(regLean.division);
+  const { url, pub } = await paymentLinkUrlForRegistration(regLean._id, req);
+  await sendPaymentReminderEmail({
+    tournament: TOURNAMENT,
+    reg: regLean,
+    payLinkUrl: url,
+    amountCents,
+    publicBaseUrl: pub
+  });
 }
 
 async function sendCheckoutPaymentEmailToRegistrant(regLean, stripeCheckoutSessionId, checkoutUrl, amountCents, pub) {
@@ -336,7 +433,8 @@ app.get("/", (req, res) => {
   res.render("pages/home", {
     tournament: TOURNAMENT,
     registrationDeadline: getRegistrationDeadline(),
-    registrationOpen: isRegistrationOpen()
+    registrationOpen: isRegistrationOpen(),
+    whatsappLink: String(process.env.WHATSAPP_LINK || "").trim()
   });
 });
 
@@ -584,6 +682,32 @@ app.get("/payment/cancel", (req, res) => {
   res.render("pages/payment_cancel", { tournament: TOURNAMENT, rid });
 });
 
+/**
+ * 長效付款連結：使用者每次點入都即時建立 Stripe Checkout Session，避免 session.url 24 小時失效問題
+ */
+app.get("/pay/:token", async (req, res) => {
+  const token = String(req.params.token || "").trim();
+  if (!token) return res.status(404).send("Not found");
+
+  const reg = await Registration.findOne({ paymentLinkToken: token }).lean();
+  if (!reg) return res.status(404).send("找不到付款連結");
+
+  if (reg.paymentStatus === "paid") {
+    return res.status(200).send("此報名已完成付款。");
+  }
+
+  const stripe = stripeClient();
+  if (!stripe) return res.status(500).send("Stripe 未設定");
+
+  try {
+    const { checkoutUrl } = await createCheckoutSessionForRegistration(reg, req);
+    if (!checkoutUrl) return res.status(500).send("未能建立付款連結");
+    return res.redirect(303, checkoutUrl);
+  } catch (e) {
+    return res.status(500).send(String(e && e.message ? e.message : e || "error"));
+  }
+});
+
 // Admin: login/logout
 app.get("/admin/login", (req, res) => {
   if (!adminConfigured()) {
@@ -640,7 +764,9 @@ app.get("/admin", requireAdmin, async (req, res) => {
   ]);
 
   const paymentEmailBatchFlash = req.session.paymentEmailBatchFlash || null;
+  const paymentReminderBatchFlash = req.session.paymentReminderBatchFlash || null;
   if (req.session.paymentEmailBatchFlash) delete req.session.paymentEmailBatchFlash;
+  if (req.session.paymentReminderBatchFlash) delete req.session.paymentReminderBatchFlash;
 
   res.render("pages/admin/registrations", {
     tournament: TOURNAMENT,
@@ -649,6 +775,7 @@ app.get("/admin", requireAdmin, async (req, res) => {
     duprOrNR,
     stripePaymentOk: stripeConfigured(),
     paymentEmailBatchFlash,
+    paymentReminderBatchFlash,
     page,
     pageSize,
     total
@@ -679,7 +806,25 @@ app.post("/admin/registration/:id/send-payment-email", requireAdmin, async (req,
   const reg = id ? await Registration.findById(id).lean() : null;
   if (!reg) return res.redirect("/admin");
   try {
-    await createCheckoutSessionAndSendPaymentEmail(reg, req);
+    await Registration.findByIdAndUpdate(reg._id, { paymentStatus: "pending" });
+    await sendPaymentLinkEmailToRegistrant(reg, req);
+    return res.redirect(`/admin/registration/${encodeURIComponent(id)}?payment=sent`);
+  } catch (e) {
+    const msg = encodeURIComponent(String(e && e.message ? e.message : e || "error"));
+    return res.redirect(`/admin/registration/${encodeURIComponent(id)}?payment=fail&msg=${msg}`);
+  }
+});
+
+app.post("/admin/registration/:id/send-payment-reminder", requireAdmin, async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const reg = id ? await Registration.findById(id).lean() : null;
+  if (!reg) return res.redirect("/admin");
+  if (reg.paymentStatus === "paid") {
+    return res.redirect(`/admin/registration/${encodeURIComponent(id)}?payment=fail&msg=${encodeURIComponent("此報名已付款")}`);
+  }
+  try {
+    await Registration.findByIdAndUpdate(reg._id, { paymentStatus: "pending" });
+    await sendPaymentReminderEmailToRegistrant(reg, req);
     return res.redirect(`/admin/registration/${encodeURIComponent(id)}?payment=sent`);
   } catch (e) {
     const msg = encodeURIComponent(String(e && e.message ? e.message : e || "error"));
@@ -699,14 +844,14 @@ app.post("/admin/registration/:id/checkout-preview", requireAdmin, async (req, r
     return res.status(400).json({ ok: false, message: "Stripe 未設定（缺少 STRIPE_SECRET_KEY）" });
   }
   try {
-    const { session, checkoutUrl, amountCents, pub } = await createCheckoutSessionForRegistration(reg, req);
+    const { url: payUrl, pub } = await paymentLinkUrlForRegistration(reg._id, req);
     return res.json({
       ok: true,
-      checkoutUrl,
-      sessionId: session.id,
-      amountCents,
+      checkoutUrl: payUrl,
+      sessionId: "",
+      amountCents: divisionFeeCents(reg.division),
       publicBaseUrl: pub,
-      note: "已建立 Session 並寫入資料庫，但未寄出電郵。請使用下方連結以測試卡付款；每次按鈕會產生一筆新的待付款 Session。"
+      note: "此為長效付款連結（不會因 24 小時失效）。點入後系統會即時建立 Stripe Checkout Session 並轉跳。"
     });
   } catch (e) {
     return res.status(500).json({
@@ -746,7 +891,8 @@ app.post("/admin/registrations/send-payment-emails", requireAdmin, async (req, r
       continue;
     }
     try {
-      await createCheckoutSessionAndSendPaymentEmail(reg, req);
+      await Registration.findByIdAndUpdate(reg._id, { paymentStatus: "pending" });
+      await sendPaymentLinkEmailToRegistrant(reg, req);
       lines.push(`✓ ${label}｜${divisionLabelOrValue(reg.division)}`);
     } catch (e) {
       lines.push(`✗ ${label}：${String((e && e.message) || e || "error")}`);
@@ -754,6 +900,42 @@ app.post("/admin/registrations/send-payment-emails", requireAdmin, async (req, r
   }
 
   req.session.paymentEmailBatchFlash = { lines };
+  return res.redirect("/admin");
+});
+
+app.post("/admin/registrations/send-payment-reminders", requireAdmin, async (req, res) => {
+  let raw = req.body.registrationIds;
+  if (raw == null) raw = [];
+  if (!Array.isArray(raw)) raw = [raw];
+  const ids = raw.map((x) => String(x || "").trim()).filter(Boolean);
+
+  if (!ids.length) {
+    req.session.paymentReminderBatchFlash = { lines: ["請至少勾選一筆報名。"] };
+    return res.redirect("/admin");
+  }
+
+  const lines = [];
+  for (const id of ids) {
+    const reg = await Registration.findById(id).lean();
+    if (!reg) {
+      lines.push(`✗（${id}）：找不到報名`);
+      continue;
+    }
+    const label = `${reg.fullName || ""}｜${reg.email || ""}`;
+    if (reg.paymentStatus === "paid") {
+      lines.push(`○ ${label}：已付款，略過`);
+      continue;
+    }
+    try {
+      await Registration.findByIdAndUpdate(reg._id, { paymentStatus: "pending" });
+      await sendPaymentReminderEmailToRegistrant(reg, req);
+      lines.push(`✓ ${label}｜${divisionLabelOrValue(reg.division)}`);
+    } catch (e) {
+      lines.push(`✗ ${label}：${String((e && e.message) || e || "error")}`);
+    }
+  }
+
+  req.session.paymentReminderBatchFlash = { lines };
   return res.redirect("/admin");
 });
 

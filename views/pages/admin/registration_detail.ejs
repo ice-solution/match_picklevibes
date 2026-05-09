@@ -88,6 +88,14 @@
                       發送付款電郵（Stripe）
                     </button>
                   </form>
+                  <form method="post" action="/admin/registration/<%= reg._id %>/send-payment-reminder" class="shrink-0">
+                    <button
+                      type="submit"
+                      class="w-full rounded-2xl bg-white px-4 py-3 text-xs font-extrabold text-pickle-ink ring-1 ring-black/15 hover:bg-black/[0.03] sm:w-auto"
+                    >
+                      發送付款提醒
+                    </button>
+                  </form>
                   <button
                     type="button"
                     id="btnCheckoutPreview"

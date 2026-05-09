@@ -48,7 +48,11 @@ const RegistrationSchema = new mongoose.Schema(
     },
     paidAt: { type: Date, default: null },
     latestStripeCheckoutSessionId: { type: String, trim: true, default: "" },
-    latestPaymentAmountCents: { type: Number, default: null }
+    latestPaymentAmountCents: { type: Number, default: null },
+
+    /** 長效付款連結 token（用於 /pay/:token；避免直接用 Mongo _id 被猜到） */
+    paymentLinkToken: { type: String, trim: true, default: "", index: true },
+    paymentLinkTokenCreatedAt: { type: Date, default: null }
   },
   { timestamps: true }
 );
