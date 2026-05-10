@@ -7,9 +7,86 @@
       .pv-glow { box-shadow: 0 18px 70px rgba(0,0,0,.12); }
       .pv-card { transition: transform .18s ease, box-shadow .18s ease; }
       .pv-card:hover { transform: translateY(-2px); box-shadow: 0 18px 60px rgba(0,0,0,.12); }
+      .pv-hype {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: .55rem;
+        padding: .5rem .85rem;
+        border-radius: 999px;
+        border: 1px solid rgba(0,0,0,.08);
+        background: linear-gradient(90deg, rgba(255,77,166,.22), rgba(0,196,177,.22), rgba(255,214,10,.22));
+        background-size: 200% 100%;
+        box-shadow: 0 10px 35px rgba(255,77,166,.18), 0 10px 35px rgba(0,196,177,.14);
+        transform-origin: 50% 60%;
+        animation: pvHypeGlow 2.3s linear infinite, pvHypePop 700ms ease-in-out infinite alternate, pvHypeShake 160ms ease-in-out infinite;
+        will-change: transform, filter, background-position;
+      }
+      .pv-hype::before {
+        content: "";
+        position: absolute;
+        inset: -14px -18px;
+        border-radius: 999px;
+        background: radial-gradient(circle at 30% 20%, rgba(255,77,166,.35), transparent 60%),
+                    radial-gradient(circle at 70% 80%, rgba(0,196,177,.35), transparent 60%),
+                    radial-gradient(circle at 50% 50%, rgba(255,214,10,.25), transparent 62%);
+        filter: blur(18px);
+        opacity: .85;
+        z-index: -1;
+        animation: pvHypeAura 1.2s ease-in-out infinite alternate;
+      }
+      .pv-hype__text {
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: #111827; /* slate-900-ish: keep text readable */
+        text-shadow:
+          0 1px 0 rgba(255,255,255,.55),
+          0 0 10px rgba(255,45,149,.55),
+          0 0 18px rgba(0,196,177,.40),
+          0 8px 24px rgba(0,0,0,.12);
+        /* keep text stable (no flashing/gradient animation) */
+      }
+      .pv-hype__icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.1rem;
+        height: 2.1rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,.75);
+        border: 1px solid rgba(0,0,0,.10);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.55);
+        animation: pvHypeSpin 900ms linear infinite;
+      }
+      @keyframes pvHypeGlow {
+        0% { background-position: 0% 50%; filter: saturate(1.05) contrast(1.05); }
+        50% { background-position: 100% 50%; filter: saturate(1.35) contrast(1.18); }
+        100% { background-position: 0% 50%; filter: saturate(1.05) contrast(1.05); }
+      }
+      @keyframes pvHypePop {
+        0% { transform: translateY(0) rotate(-.6deg) scale(1); }
+        100% { transform: translateY(-2px) rotate(.6deg) scale(1.06); }
+      }
+      @keyframes pvHypeShake {
+        0% { transform: translateX(0) }
+        25% { transform: translateX(-1px) }
+        50% { transform: translateX(1px) }
+        75% { transform: translateX(-1px) }
+        100% { transform: translateX(0) }
+      }
+      @keyframes pvHypeAura {
+        0% { opacity: .65; transform: scale(.98); }
+        100% { opacity: 1; transform: scale(1.04); }
+      }
+      @keyframes pvHypeSpin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
       @media (prefers-reduced-motion: reduce) {
         .pv-card { transition: none; }
         .pv-card:hover { transform: none; }
+        .pv-hype, .pv-hype::before, .pv-hype__text, .pv-hype__icon { animation: none !important; }
       }
     </style>
   </head>
@@ -52,11 +129,18 @@
               <span class="rounded-full bg-pickle-mist px-3 py-1 ring-1 ring-black/5">亞洲國際博覽館</span>
               <span class="rounded-full bg-pickle-mist px-3 py-1 ring-1 ring-black/5">兩人一隊</span>
               <span class="rounded-full bg-pickle-mist px-3 py-1 ring-1 ring-black/5">新手友善</span>
+              <span class="rounded-full bg-pickle-mist px-3 py-1 ring-1 ring-black/5">名額不設限</span>
             </div>
 
             <h1 class="mt-3 text-3xl font-black leading-tight tracking-tight text-pickle-ink md:text-5xl">
               大家減齢 x Pickle Vibes 匹克球博覽盃
             </h1>
+            <div class="mt-3">
+              <div class="pv-hype">
+                <span class="pv-hype__icon" aria-hidden="true">🔥</span>
+                <span class="pv-hype__text text-lg md:text-2xl">名額現在不設限！</span>
+              </div>
+            </div>
             <p class="mt-3 text-base leading-relaxed text-black/75 md:text-lg">
               兩人一隊，<span class="font-extrabold text-pickle-ink">小朋友每人 HK$<%= kidsPerPerson %> 起</span>｜<span class="font-extrabold text-pickle-ink">成人/親子每人 HK$<%= adultPerPerson %> 起</span>。打比賽之餘，同場仲有兒童節親子展：一日完成運動、親子同回憶。
             </p>
