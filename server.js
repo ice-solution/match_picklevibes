@@ -9,7 +9,7 @@ const XLSX = require("xlsx");
 const Registration = require("./models/Registration");
 const PaymentTransaction = require("./models/PaymentTransaction");
 const { sendRegistrationEmail, sendPaymentRequestEmail, sendPaymentReminderEmail, duprOrNR } = require("./lib/email");
-const { divisionLabelOrValue, divisionFeeCents } = require("./lib/divisions");
+const { DIVISIONS, divisionLabelOrValue, divisionFeeCents } = require("./lib/divisions");
 const {
   GENDER,
   parseDuprInput,
@@ -192,6 +192,32 @@ function parseEnvDate(value) {
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return null;
   return d;
+}
+
+/** 後台列表：YYYY-MM-DD 以香港時間當日起迄，用於篩選 createdAt */
+function parseYmdHongKongStart(ymd) {
+  const s = String(ymd || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const d = new Date(`${s}T00:00:00+08:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function parseYmdHongKongEnd(ymd) {
+  const s = String(ymd || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const d = new Date(`${s}T23:59:59.999+08:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function buildAdminRegistrationsPath({ page, division, dateFrom, dateTo } = {}) {
+  const u = new URLSearchParams();
+  const p = Number(page);
+  if (Number.isFinite(p) && p > 1) u.set("page", String(Math.floor(p)));
+  if (division) u.set("division", String(division));
+  if (dateFrom) u.set("dateFrom", String(dateFrom));
+  if (dateTo) u.set("dateTo", String(dateTo));
+  const s = u.toString();
+  return s ? `/admin?${s}` : "/admin";
 }
 
 /**
@@ -751,28 +777,79 @@ app.post("/admin/logout", (req, res) => {
 
 // Admin: list registrations
 app.get("/admin", requireAdmin, async (req, res) => {
-  const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
   const pageSize = 25;
+  let page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+
+  let divisionQ = String(req.query.division || "").trim();
+  if (divisionQ && !DIVISIONS.some((d) => d.value === divisionQ)) divisionQ = "";
+
+  let dateFromQ = String(req.query.dateFrom || "").trim();
+  let dateToQ = String(req.query.dateTo || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateFromQ)) dateFromQ = "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateToQ)) dateToQ = "";
+
+  const filter = {};
+  if (divisionQ) filter.division = divisionQ;
+
+  const fromD = dateFromQ ? parseYmdHongKongStart(dateFromQ) : null;
+  const toD = dateToQ ? parseYmdHongKongEnd(dateToQ) : null;
+  if (fromD && toD && fromD.getTime() > toD.getTime()) {
+    const tmp = dateFromQ;
+    dateFromQ = dateToQ;
+    dateToQ = tmp;
+    const f2 = parseYmdHongKongStart(dateFromQ);
+    const t2 = parseYmdHongKongEnd(dateToQ);
+    if (f2 && t2) {
+      filter.createdAt = { $gte: f2, $lte: t2 };
+    }
+  } else {
+    const ca = {};
+    if (fromD) ca.$gte = fromD;
+    if (toD) ca.$lte = toD;
+    if (Object.keys(ca).length) filter.createdAt = ca;
+  }
+
+  const listParams = { division: divisionQ, dateFrom: dateFromQ, dateTo: dateToQ };
+
+  const total = await Registration.countDocuments(filter);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (page > totalPages) page = totalPages;
+
   const skip = (page - 1) * pageSize;
-  const [items, total] = await Promise.all([
-    Registration.find({})
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(pageSize)
-      .lean(),
-    Registration.countDocuments({})
-  ]);
+
+  const adminListPath = (overrides) =>
+    buildAdminRegistrationsPath({
+      page,
+      division: listParams.division,
+      dateFrom: listParams.dateFrom,
+      dateTo: listParams.dateTo,
+      ...overrides
+    });
+
+  const items = await Registration.find(filter)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(pageSize)
+    .lean();
 
   const paymentEmailBatchFlash = req.session.paymentEmailBatchFlash || null;
   const paymentReminderBatchFlash = req.session.paymentReminderBatchFlash || null;
   if (req.session.paymentEmailBatchFlash) delete req.session.paymentEmailBatchFlash;
   if (req.session.paymentReminderBatchFlash) delete req.session.paymentReminderBatchFlash;
 
+  const hasActiveFilters = Boolean(divisionQ || dateFromQ || dateToQ);
+
   res.render("pages/admin/registrations", {
     tournament: TOURNAMENT,
     items,
     divisionLabelOrValue,
     duprOrNR,
+    divisions: DIVISIONS,
+    filterDivision: divisionQ,
+    filterDateFrom: dateFromQ,
+    filterDateTo: dateToQ,
+    adminListPath,
+    hasActiveFilters,
     stripePaymentOk: stripeConfigured(),
     paymentEmailBatchFlash,
     paymentReminderBatchFlash,

@@ -38,9 +38,12 @@
         onsubmit="var n=document.querySelectorAll('.row-pay-cb:checked').length;if(!n){alert('請至少勾選一筆報名。');return false;}return true;"
       >
 
-      <div class="flex items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="text-sm text-black/60">
           共 <span class="font-bold text-pickle-ink"><%= total %></span> 筆 · 第 <%= page %> 頁
+          <% if (typeof hasActiveFilters !== "undefined" && hasActiveFilters) { %>
+            <span class="ml-2 inline-flex items-center rounded-full bg-pickle-teal/15 px-2 py-0.5 text-xs font-bold text-pickle-teal ring-1 ring-pickle-teal/25">已套用篩選</span>
+          <% } %>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <% if (showPayPick) { %>
@@ -75,6 +78,49 @@
           </a>
         </div>
       </div>
+
+      <form method="get" action="/admin" class="mt-4 flex flex-wrap items-end gap-3 rounded-2xl bg-white p-4 ring-1 ring-black/5">
+        <div class="min-w-[200px] flex-1">
+          <label for="filterDivision" class="mb-1 block text-xs font-bold text-black/50">組別</label>
+          <select
+            id="filterDivision"
+            name="division"
+            class="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-pickle-ink outline-none focus:ring-2 focus:ring-pickle-teal/40"
+          >
+            <option value="">全部組別</option>
+            <% (divisions || []).forEach(function (d) { %>
+              <option value="<%= d.value %>" <%= (typeof filterDivision !== "undefined" && filterDivision === d.value) ? "selected" : "" %>><%= d.label %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div>
+          <label for="filterDateFrom" class="mb-1 block text-xs font-bold text-black/50">提交日期（起）</label>
+          <input
+            id="filterDateFrom"
+            type="date"
+            name="dateFrom"
+            value="<%= typeof filterDateFrom !== "undefined" ? filterDateFrom : "" %>"
+            class="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-pickle-ink outline-none focus:ring-2 focus:ring-pickle-teal/40"
+          />
+        </div>
+        <div>
+          <label for="filterDateTo" class="mb-1 block text-xs font-bold text-black/50">提交日期（迄）</label>
+          <input
+            id="filterDateTo"
+            type="date"
+            name="dateTo"
+            value="<%= typeof filterDateTo !== "undefined" ? filterDateTo : "" %>"
+            class="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-pickle-ink outline-none focus:ring-2 focus:ring-pickle-teal/40"
+          />
+        </div>
+        <div class="flex flex-wrap items-center gap-2 pb-0.5">
+          <button type="submit" class="rounded-xl bg-pickle-ink px-4 py-2 text-sm font-extrabold text-white shadow-sm hover:brightness-110">
+            套用篩選
+          </button>
+          <a href="/admin" class="rounded-xl bg-white px-4 py-2 text-sm font-extrabold text-pickle-ink ring-1 ring-black/10 hover:bg-black/5">重設</a>
+        </div>
+        <p class="w-full text-xs text-black/45">日期以香港時間（GMT+8）計算「提交時間」欄所屬日曆日；僅填「起」或僅填「迄」亦可。</p>
+      </form>
 
       <% if (paymentEmailBatchFlash && paymentEmailBatchFlash.lines && paymentEmailBatchFlash.lines.length) { %>
         <div class="mt-4 rounded-2xl bg-pickle-mist p-4 text-sm text-black/80 ring-1 ring-black/5">
@@ -196,13 +242,13 @@
           <% const totalPages = Math.max(1, Math.ceil((total || 0) / pageSize)); %>
           <a
             class="rounded-xl px-3 py-2 text-sm font-bold ring-1 ring-black/10 hover:bg-black/5 <%= page <= 1 ? 'pointer-events-none opacity-40' : '' %>"
-            href="/admin?page=<%= Math.max(1, page - 1) %>"
+            href="<%= typeof adminListPath === 'function' ? adminListPath({ page: Math.max(1, page - 1) }) : '/admin' %>"
           >
             上一頁
           </a>
           <a
             class="rounded-xl px-3 py-2 text-sm font-bold ring-1 ring-black/10 hover:bg-black/5 <%= page >= totalPages ? 'pointer-events-none opacity-40' : '' %>"
-            href="/admin?page=<%= Math.min(totalPages, page + 1) %>"
+            href="<%= typeof adminListPath === 'function' ? adminListPath({ page: Math.min(totalPages, page + 1) }) : '/admin' %>"
           >
             下一頁
           </a>
