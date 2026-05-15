@@ -8,7 +8,7 @@ const XLSX = require("xlsx");
 
 const Registration = require("./models/Registration");
 const PaymentTransaction = require("./models/PaymentTransaction");
-const { sendRegistrationEmail, sendPaymentRequestEmail, sendPaymentReminderEmail, duprOrNR } = require("./lib/email");
+const { sendRegistrationEmail, sendPaymentRequestEmail, sendPaymentReminderEmail, sendPaymentInvoiceEmail, duprOrNR } = require("./lib/email");
 const { DIVISIONS, divisionLabelOrValue, divisionFeeCents } = require("./lib/divisions");
 const {
   GENDER,
@@ -150,6 +150,66 @@ app.post("/stripe/webhook", express.raw({ type: "application/json" }), async (re
               latestStripeCheckoutSessionId: sid,
               latestPaymentAmountCents: txn.amountCents
             });
+          } else if (txn.registration) {
+            await Registration.findByIdAndUpdate(txn.registration, {
+              paymentStatus: "paid",
+              paidAt: txn.paidAt,
+              latestStripeCheckoutSessionId: sid,
+              latestPaymentAmountCents: txn.amountCents
+            });
+          }
+
+          const regId = String(rid || txn.registration || "").trim();
+          if (regId) {
+            const txnAfter = await PaymentTransaction.findById(txn._id).lean();
+            if (txnAfter && !txnAfter.invoiceEmailSentAt) {
+              const regDoc = await Registration.findById(regId).lean();
+              if (regDoc && regDoc.email) {
+                try {
+                  const pub = await appPublicBaseUrl(req);
+                  const inv = await sendPaymentInvoiceEmail({
+                    tournament: TOURNAMENT,
+                    reg: regDoc,
+                    amountCents: txnAfter.amountCents,
+                    currency: txnAfter.currency,
+                    stripeCheckoutSessionId: sid,
+                    stripePaymentIntentId: txnAfter.stripePaymentIntentId || "",
+                    paidAt: txnAfter.paidAt,
+                    publicBaseUrl: pub
+                  });
+                  if (inv && inv.ok) {
+                    await PaymentTransaction.updateOne(
+                      { _id: txn._id },
+                      { $set: { invoiceEmailSentAt: new Date(), invoiceEmailSendError: "" } }
+                    );
+                  } else {
+                    await PaymentTransaction.updateOne(
+                      { _id: txn._id },
+                      {
+                        $set: {
+                          invoiceEmailSendError: String(
+                            (inv && inv.error) || "invoice email not sent"
+                          )
+                        }
+                      }
+                    );
+                  }
+                } catch (invErr) {
+                  await PaymentTransaction.updateOne(
+                    { _id: txn._id },
+                    {
+                      $set: {
+                        invoiceEmailSendError: String(
+                          invErr && invErr.message ? invErr.message : invErr || "invoice email failed"
+                        )
+                      }
+                    }
+                  );
+                  // eslint-disable-next-line no-console
+                  console.error("payment invoice email failed:", invErr);
+                }
+              }
+            }
           }
         }
         break;
@@ -424,6 +484,7 @@ function defaultApplyValues() {
     fullName: "",
     email: "",
     phone: "",
+    referrerPhone: "",
     bocReferralCode: "",
     division: "",
     notes: "",
@@ -491,6 +552,9 @@ app.post("/apply", async (req, res) => {
     fullName: String(req.body.fullName || "").trim(),
     email: normalizeEmail(req.body.email),
     phone: String(req.body.phone || "").trim(),
+    referrerPhone: String(req.body.referrerPhone || "")
+      .trim()
+      .slice(0, 30),
     bocReferralCode: String(req.body.bocReferralCode || "").trim(),
     division: String(req.body.division || "").trim(),
     notes: String(req.body.notes || "").trim(),
@@ -632,6 +696,7 @@ app.post("/apply", async (req, res) => {
       fullName: values.fullName,
       email: values.email,
       phone: values.phone,
+      referrerPhone: values.referrerPhone || "",
       bocReferralCode: values.bocReferralCode,
       player1: {
         name: values.player1Name,
@@ -1095,6 +1160,7 @@ app.get("/admin/export.xlsx", requireAdmin, async (req, res) => {
     聯絡人姓名: r.fullName || "",
     電郵: r.email || "",
     電話: r.phone || "",
+    推薦人電話: r.referrerPhone || "",
     推廣碼: r.bocReferralCode || "",
     組別: divisionLabelOrValue(r.division),
     付款狀態:

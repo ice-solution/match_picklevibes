@@ -47,6 +47,7 @@ function demoRegistration(toEmail) {
     fullName: "CLI Demo 聯絡人",
     email: toEmail,
     phone: "91234567",
+    referrerPhone: "92345678",
     bocReferralCode: process.env.BOC_EXPECTED_REFERRAL_CODE || "BOCLP26",
     notes: "此為 scripts/send-email-demo.js 示範郵件，可忽略。",
     player1: {

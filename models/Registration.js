@@ -23,6 +23,8 @@ const RegistrationSchema = new mongoose.Schema(
       maxlength: 254
     },
     phone: { type: String, required: true, trim: true, maxlength: 30 },
+    /** 推薦人帳戶電話（選填；與聯絡人電話分開） */
+    referrerPhone: { type: String, required: false, trim: true, maxlength: 30, default: "" },
     bocReferralCode: { type: String, required: false, trim: true, maxlength: 64, default: "" },
 
     player1: { type: PlayerSchema, required: true },

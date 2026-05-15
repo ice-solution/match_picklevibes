@@ -152,6 +152,10 @@
                   <dt class="text-black/60">電話</dt>
                   <dd class="text-right font-semibold text-pickle-ink"><%= reg.phone %></dd>
                 </div>
+                <div class="flex items-start justify-between gap-4">
+                  <dt class="text-black/60">推薦人電話</dt>
+                  <dd class="text-right font-semibold text-pickle-ink"><%= (reg.referrerPhone && String(reg.referrerPhone).trim()) ? reg.referrerPhone : "—" %></dd>
+                </div>
                 <% if (reg.bocReferralCode) { %>
                   <div class="flex items-start justify-between gap-4">
                     <dt class="text-black/60">推廣碼</dt>

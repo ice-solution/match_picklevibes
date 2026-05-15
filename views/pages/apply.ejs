@@ -89,6 +89,24 @@
           </div>
 
           <div>
+            <label class="text-sm font-semibold text-pickle-ink" for="referrerPhone">推薦人電話號碼</label>
+            <p class="mt-1 text-xs leading-relaxed text-black/55">
+              （請填寫推薦人帳戶 電話號碼 可共享500積分於PickleVibes場地使用）
+            </p>
+            <input
+              id="referrerPhone"
+              name="referrerPhone"
+              value="<%= values.referrerPhone || '' %>"
+              class="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none ring-pickle-teal/30 focus:ring-4"
+              placeholder="選填，例如：9123 4567"
+              autocomplete="tel"
+              inputmode="tel"
+              maxlength="30"
+            />
+            <% if (errors.referrerPhone) { %><div class="mt-2 text-xs font-semibold text-red-600"><%= errors.referrerPhone %></div><% } %>
+          </div>
+
+          <div>
             <label class="text-sm font-semibold text-pickle-ink">組別</label>
             <select
               id="divisionSelect"

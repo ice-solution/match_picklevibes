@@ -23,7 +23,10 @@ const PaymentTransactionSchema = new mongoose.Schema(
     paidAt: { type: Date, default: null },
     paymentEmailSentAt: { type: Date, default: null },
     paymentEmailSendError: { type: String, default: "" },
-    lastWebhookEventId: { type: String, trim: true, default: "" }
+    lastWebhookEventId: { type: String, trim: true, default: "" },
+    /** Stripe webhook 付款成功後寄出之收據／invoice 電郵 */
+    invoiceEmailSentAt: { type: Date, default: null },
+    invoiceEmailSendError: { type: String, default: "" }
   },
   { timestamps: true }
 );

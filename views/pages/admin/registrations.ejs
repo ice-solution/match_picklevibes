@@ -30,7 +30,7 @@
 
     <main class="mx-auto max-w-6xl px-4 py-8">
       <% const showPayPick = typeof stripePaymentOk !== "undefined" && stripePaymentOk; %>
-      <% const tableColspan = showPayPick ? 12 : 11; %>
+      <% const tableColspan = showPayPick ? 13 : 12; %>
 
       <form method="get" action="/admin" class="mb-4 flex flex-wrap items-end gap-3 rounded-2xl bg-white p-4 ring-1 ring-black/5">
         <div class="min-w-[200px] flex-1">
@@ -158,6 +158,7 @@
                 <th class="whitespace-nowrap px-4 py-3">聯絡人</th>
                 <th class="whitespace-nowrap px-4 py-3">電郵</th>
                 <th class="whitespace-nowrap px-4 py-3">電話</th>
+                <th class="whitespace-nowrap px-4 py-3">推薦人電話</th>
                 <th class="whitespace-nowrap px-4 py-3">BOC</th>
                 <th class="whitespace-nowrap px-4 py-3">組別</th>
                 <th class="whitespace-nowrap px-4 py-3">付款</th>
@@ -192,6 +193,7 @@
                   </td>
                   <td class="whitespace-nowrap px-4 py-3"><%= r.email || "—" %></td>
                   <td class="whitespace-nowrap px-4 py-3"><%= r.phone || "—" %></td>
+                  <td class="whitespace-nowrap px-4 py-3 font-mono text-xs text-black/80"><%= (r.referrerPhone && String(r.referrerPhone).trim()) ? r.referrerPhone : "—" %></td>
                   <td class="whitespace-nowrap px-4 py-3 font-mono text-xs text-black/80"><%= (r.bocReferralCode && String(r.bocReferralCode).trim()) ? r.bocReferralCode : "-" %></td>
                   <td class="px-4 py-3 text-xs text-black/80"><%= (typeof divisionLabelOrValue === 'function' ? divisionLabelOrValue(r.division) : (r.division || "—")) %></td>
                   <td class="whitespace-nowrap px-4 py-3 text-xs font-semibold text-black/70">

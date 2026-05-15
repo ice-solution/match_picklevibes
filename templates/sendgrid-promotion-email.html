@@ -3,26 +3,20 @@
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PickleVibes 推廣電郵</title>
+  <meta name="x-apple-disable-message-reformatting" />
+  <title>PickleVibes</title>
   <!--
-    使用說明（發送前請替換佔位符）：
-    {{PREHEADER}}     — 預覽摘要（部分客戶端顯示在主旨旁，建議 40–90 字）
-    {{HEADLINE}}      — 主標題
-    {{SUBHEAD}}       — 副標（可刪整段 table row）
-    {{BODY_PARA_1}}   — 正文第一段
-    {{BODY_PARA_2}}   — 正文第二段（可刪整段）
-    {{CTA_LABEL}}     — 主按鈕文字，例如「立即報名」
-    {{CTA_URL}}       — 主按鈕連結（完整 https URL）
-    {{SECONDARY_URL}} — 次要文字連結 URL（可與 CTA 相同或官網）
-    {{SECONDARY_TEXT}}— 次要連結顯示文字
-    {{FOOTER_NOTE}}   — 頁尾說明（例如聯絡方式）
-    若用程式產生 HTML，請對使用者輸入做 escape，避免 XSS。
+    SendGrid Dynamic Transactional Template（Handlebars）
+    - 於 SendGrid：Email API → Dynamic Templates → 建立範本 → Code Editor 貼上此檔內容。
+    - 發送時在 personalizations[].dynamic_template_data 傳 JSON，鍵名須與本範本變數一致。
+    - 文件：https://docs.sendgrid.com/ui/sending-email/how-to-send-an-email-with-dynamic-templates
+    - 主旨若要在範本內動態化：在 SendGrid 編輯器「Subject」欄填 {{subject}}，並在 dynamic_template_data 傳 subject（本 HTML 不含主旨列）。
+    - 含 HTML 的欄位使用 triple mustache：{{{highlight_html}}}（例如內含 br、strong）。
   -->
 </head>
 <body style="margin:0;padding:0;background-color:#f6f8fc;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
-  <!-- 預覽摘要：部分客戶端會顯示 -->
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">
-    {{PREHEADER}}
+    {{preheader}}
   </div>
 
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f6f8fc;">
@@ -30,7 +24,6 @@
       <td align="center" style="padding:24px 12px;">
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e8ecf1;">
 
-          <!-- 品牌頂欄（與系統通知電郵一致之漸層色） -->
           <tr>
             <td align="left" style="padding:0;">
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
@@ -48,24 +41,34 @@
             </td>
           </tr>
 
-          <!-- 主視覺標題區 -->
+          {{#if poster_url}}
+          <tr>
+            <td align="center" style="padding:0;line-height:0;font-size:0;background-color:#f0f4f8;">
+              <a href="{{cta_url}}" target="_blank" style="text-decoration:none;border:0;display:block;">
+                <img src="{{poster_url}}" width="600" alt="" style="display:block;width:100%;max-width:600px;height:auto;margin:0;border:0;outline:none;text-decoration:none;" />
+              </a>
+            </td>
+          </tr>
+          {{/if}}
+
           <tr>
             <td style="padding:28px 24px 8px 24px;font-family:Arial,'Noto Sans TC','Microsoft JhengHei',sans-serif;">
               <h1 style="margin:0;font-size:24px;line-height:1.35;font-weight:800;color:#0B1220;">
-                {{HEADLINE}}
+                {{headline}}
               </h1>
             </td>
           </tr>
 
+          {{#if subhead}}
           <tr>
             <td style="padding:0 24px 16px 24px;font-family:Arial,'Noto Sans TC','Microsoft JhengHei',sans-serif;">
               <p style="margin:0;font-size:15px;line-height:1.6;color:#5c6570;">
-                {{SUBHEAD}}
+                {{subhead}}
               </p>
             </td>
           </tr>
+          {{/if}}
 
-          <!-- 分隔線 -->
           <tr>
             <td style="padding:0 24px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -76,19 +79,20 @@
             </td>
           </tr>
 
-          <!-- 正文 -->
           <tr>
             <td style="padding:20px 24px 8px 24px;font-family:Arial,'Noto Sans TC','Microsoft JhengHei',sans-serif;">
               <p style="margin:0 0 14px 0;font-size:15px;line-height:1.7;color:#0B1220;">
-                {{BODY_PARA_1}}
+                {{body_para_1}}
               </p>
+              {{#if body_para_2}}
               <p style="margin:0;font-size:15px;line-height:1.7;color:#0B1220;">
-                {{BODY_PARA_2}}
+                {{body_para_2}}
               </p>
+              {{/if}}
             </td>
           </tr>
 
-          <!-- 重點方塊（可改為賽事日期／地點／早鳥優惠等） -->
+          {{#if highlight_html}}
           <tr>
             <td style="padding:8px 24px 20px 24px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f6f8fc;border:1px solid rgba(9,183,188,0.2);border-radius:12px;">
@@ -96,27 +100,22 @@
                   <td style="padding:16px 18px;font-family:Arial,'Noto Sans TC','Microsoft JhengHei',sans-serif;">
                     <div style="font-size:13px;font-weight:800;color:#09B7BC;margin-bottom:8px;">重點速覽</div>
                     <div style="font-size:14px;line-height:1.75;color:#0B1220;">
-                      {{HIGHLIGHT_BULLETS}}
-                      <!-- 建議用 <br/> 分行，例如：
-                      · 賽事名稱與組別豐富<br/>
-                      · 網上報名簡便<br/>
-                      · 詳情請見官網
-                      -->
+                      {{{highlight_html}}}
                     </div>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
+          {{/if}}
 
-          <!-- CTA 按鈕（表格排版，相容 Outlook） -->
           <tr>
             <td align="center" style="padding:8px 24px 28px 24px;">
               <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td align="center" bgcolor="#09B7BC" style="border-radius:999px;mso-padding-alt:14px 32px;">
-                    <a href="{{CTA_URL}}" target="_blank" style="display:inline-block;padding:14px 32px;font-family:Arial,'Noto Sans TC','Microsoft JhengHei',sans-serif;font-size:16px;font-weight:800;color:#ffffff;text-decoration:none;border-radius:999px;">
-                      {{CTA_LABEL}}
+                    <a href="{{cta_url}}" target="_blank" style="display:inline-block;padding:14px 32px;font-family:Arial,'Noto Sans TC','Microsoft JhengHei',sans-serif;font-size:16px;font-weight:800;color:#ffffff;text-decoration:none;border-radius:999px;">
+                      {{cta_label}}
                     </a>
                   </td>
                 </tr>
@@ -124,33 +123,29 @@
             </td>
           </tr>
 
-          <!-- 次要連結 -->
           <tr>
             <td align="center" style="padding:0 24px 24px 24px;font-family:Arial,'Noto Sans TC','Microsoft JhengHei',sans-serif;font-size:14px;line-height:1.6;color:#5c6570;">
               或複製此連結到瀏覽器：<br />
-              <a href="{{SECONDARY_URL}}" target="_blank" style="color:#09B7BC;word-break:break-all;">{{SECONDARY_TEXT}}</a>
+              <a href="{{secondary_url}}" target="_blank" style="color:#09B7BC;word-break:break-all;">{{secondary_text}}</a>
             </td>
           </tr>
 
-          <!-- 頁尾 -->
           <tr>
             <td style="padding:16px 24px 22px 24px;border-top:1px solid #eef1f5;font-family:Arial,'Noto Sans TC','Microsoft JhengHei',sans-serif;font-size:12px;line-height:1.65;color:rgba(11,18,32,0.55);">
-              <p style="margin:0 0 8px 0;">{{FOOTER_NOTE}}</p>
+              <p style="margin:0 0 8px 0;">{{footer_note}}</p>
               <p style="margin:0;">
                 你收到此電郵是因為曾與 PickleVibes 或相關活動互動。如不欲再收到推廣訊息，請
-                <a href="{{UNSUBSCRIBE_URL}}" style="color:#09B7BC;">按此退訂</a>
-                （請將 {{UNSUBSCRIBE_URL}} 改為實際退訂頁或 mailto）。
+                <a href="{{unsubscribe_url}}" style="color:#09B7BC;">按此退訂</a>。
               </p>
             </td>
           </tr>
 
         </table>
 
-        <!-- 外層小字 -->
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;">
           <tr>
             <td align="center" style="padding:16px 12px;font-family:Arial,'Noto Sans TC',sans-serif;font-size:11px;color:#9aa7b2;">
-              © PickleVibes · 此為推廣用途範本，發送前請替換所有佔位符並測試各郵件客戶端顯示。
+              © PickleVibes
             </td>
           </tr>
         </table>
