@@ -28,7 +28,8 @@ const RegistrationSchema = new mongoose.Schema(
     bocReferralCode: { type: String, required: false, trim: true, maxlength: 64, default: "" },
 
     player1: { type: PlayerSchema, required: true },
-    player2: { type: PlayerSchema, required: true },
+    /** 雙打必填；男單（單打）組別可省略 */
+    player2: { type: PlayerSchema, required: false },
 
     division: { type: String, required: true, trim: true },
     tournamentName: { type: String, required: true, trim: true },

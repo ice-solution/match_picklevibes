@@ -1,26 +1,135 @@
 <!doctype html>
 <html lang="zh-HK">
   <head>
-    <%- include("../partials/head", { title: "付款已提交 - " + tournament.name, tournament }) %>
+    <%- include("../partials/head", { title: "付款完成 - " + tournament.name, tournament }) %>
     <style>
       body { font-family: "Noto Sans TC", system-ui, -apple-system, sans-serif; }
     </style>
   </head>
   <body>
     <%- include("../partials/nav", { tournament }) %>
-    <main class="mx-auto max-w-xl px-4 py-12">
-      <div class="rounded-3xl bg-white p-6 ring-1 ring-black/5 md:p-8">
-        <div class="text-xl font-extrabold text-pickle-ink">感謝付款</div>
-        <p class="mt-3 text-sm leading-relaxed text-black/70">
-          如你已於 Stripe 完成付款，系統會稍後更新狀態；請保留 Stripe 收據。
-        </p>
-        <% if (sessionId) { %>
-          <div class="mt-4 rounded-2xl bg-pickle-mist p-4 text-xs text-black/60 ring-1 ring-black/5">
-            Session：<span class="break-all font-mono text-black/70"><%= sessionId %></span>
+    <main class="mx-auto max-w-3xl px-4 py-10">
+      <div class="overflow-hidden rounded-3xl bg-white ring-1 ring-black/5">
+        <div class="bg-gradient-to-br from-pickle-teal via-pickle-yellow to-pickle-pink px-6 py-8 text-white md:px-8">
+          <div class="flex items-center gap-3">
+            <img
+              src="/images/picklevibes-logo.png"
+              alt="PickleVibes"
+              class="h-12 w-12 rounded-2xl bg-white object-contain ring-1 ring-black/5"
+            />
+            <div>
+              <div class="text-sm font-bold">付款已完成</div>
+              <div class="text-xs text-white/90"><%= tournament.name %></div>
+            </div>
           </div>
-        <% } %>
-        <div class="mt-6">
-          <a href="/" class="inline-flex rounded-2xl bg-pickle-teal px-5 py-3 text-sm font-extrabold text-white hover:brightness-95">返回首頁</a>
+          <div class="mt-4 space-y-2 text-sm leading-relaxed text-white/95">
+            <% if (stripePaymentStatus === 'paid' || stripePaymentStatus === 'no_payment_required') { %>
+              <div class="font-semibold">Stripe 已確認此次付款。</div>
+            <% } else if (stripePaymentStatus) { %>
+              <div>
+                顯示付款狀態：<span class="font-semibold"><%= stripePaymentStatus %></span>。若你剛完成刷卡，狀態可能短暫尚未同步；請以 Stripe 寄送之收據為準。
+              </div>
+            <% } %>
+            <div>
+              <strong>請保留電郵／頁面收據</strong>（以及銀行紀錄如有需要）。主辦方亦會在系統處理完成後以電郵寄送付款收據或後續通知。
+            </div>
+            <div class="text-white/85">
+              若數分鐘後後台仍顯示未付款，請將<strong>收據截圖</strong>連同以下資料傳予主辦方查核。
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-6 md:px-8 md:py-7">
+          <% if (loadError === 'missing_session') { %>
+            <div class="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-100">
+              連結缺少付款交易編號。請從 Stripe 收據電郵或瀏覽器紀錄返回；亦可返回首頁聯絡主辦方。
+            </div>
+          <% } else if (loadError === 'stripe_not_configured') { %>
+            <div class="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-100">
+              伺服器未設定 Stripe 收據並聯絡主辦方。
+            </div>
+          <% } else if (loadError && loadError !== '') { %>
+            <div class="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-100">
+              暫時無法向 Stripe 讀取本次結帳資料（可能連結已過期或非本系統交易）。請<strong>保留 Stripe 收據</strong>並聯絡主辦方。
+            </div>
+          <% } %>
+
+          <% if (reg) { %>
+            <div class="mb-4 text-lg font-extrabold text-pickle-ink">報名資料確認</div>
+            <p class="mb-5 text-sm leading-relaxed text-black/65">
+              以下為你提交的報名摘要，請核對是否與 Stripe 收據一致。
+            </p>
+            <dl class="grid gap-3 text-sm">
+              <% if (amountHkdLabel) { %>
+                <div class="flex items-start justify-between gap-4">
+                  <dt class="text-black/60">應繳／本次結帳金額（參考）</dt>
+                  <dd class="text-right font-semibold text-pickle-ink"><%= amountHkdLabel %></dd>
+                </div>
+              <% } %>
+              <div class="flex items-start justify-between gap-4">
+                <dt class="text-black/60">系統付款狀態</dt>
+                <dd class="text-right font-semibold text-pickle-ink">
+                  <% if (reg.paymentStatus === 'paid') { %>已付款<% } else if (reg.paymentStatus === 'pending') { %>待確認（Webhook 處理中）<% } else { %>未付款<% } %>
+                </dd>
+              </div>
+              <div class="flex items-start justify-between gap-4">
+                <dt class="text-black/60">聯絡人</dt>
+                <dd class="text-right font-semibold text-pickle-ink"><%= reg.fullName %></dd>
+              </div>
+              <div class="flex items-start justify-between gap-4">
+                <dt class="text-black/60">電郵</dt>
+                <dd class="break-all text-right font-semibold text-pickle-ink"><%= reg.email %></dd>
+              </div>
+              <div class="flex items-start justify-between gap-4">
+                <dt class="text-black/60">聯絡電話</dt>
+                <dd class="text-right font-semibold text-pickle-ink"><%= reg.phone || "—" %></dd>
+              </div>
+              <div class="flex items-start justify-between gap-4">
+                <dt class="text-black/60">組別</dt>
+                <dd class="text-right text-xs font-semibold text-pickle-ink md:text-sm">
+                  <%= typeof divisionLabelOrValue === 'function' ? divisionLabelOrValue(reg.division) : reg.division %>
+                </dd>
+              </div>
+
+              <div class="mt-4 rounded-2xl bg-pickle-mist p-4 ring-1 ring-black/5">
+                <div class="text-xs font-semibold text-black/60">
+                  <%= typeof isSinglesDivision === 'function' && reg.division && isSinglesDivision(reg.division) ? '參賽球員（單打）' : '球員 1' %>
+                </div>
+                <div class="mt-2 grid gap-1 text-sm text-black/80">
+                  <div><span class="text-black/50">姓名：</span><%= reg.player1 && reg.player1.name %></div>
+                  <div><span class="text-black/50">出生日期：</span><%= reg.player1 && reg.player1.dateOfBirth ? new Date(reg.player1.dateOfBirth).toISOString().slice(0, 10) : '—' %></div>
+                  <div><span class="text-black/50">性別：</span><%= reg.player1 && reg.player1.gender === 'male' ? '男' : (reg.player1 && reg.player1.gender === 'female' ? '女' : '—') %></div>
+                  <div><span class="text-black/50">DUPR：</span><%= duprOrNR(reg.player1) %></div>
+                </div>
+              </div>
+
+              <% const singlesPay = typeof isSinglesDivision === 'function' && reg.division && isSinglesDivision(reg.division); %>
+              <% if (singlesPay) { %>
+              <div class="rounded-2xl bg-pickle-mist p-4 ring-1 ring-black/5">
+                <div class="text-xs font-semibold text-black/60">球員 2</div>
+                <div class="mt-2 text-sm text-black/65">此組別為單打，無需第二位球員資料。</div>
+              </div>
+              <% } else if (reg.player2 && reg.player2.name) { %>
+              <div class="rounded-2xl bg-pickle-mist p-4 ring-1 ring-black/5">
+                <div class="text-xs font-semibold text-black/60">球員 2</div>
+                <div class="mt-2 grid gap-1 text-sm text-black/80">
+                  <div><span class="text-black/50">姓名：</span><%= reg.player2.name %></div>
+                  <div><span class="text-black/50">出生日期：</span><%= reg.player2.dateOfBirth ? new Date(reg.player2.dateOfBirth).toISOString().slice(0, 10) : '—' %></div>
+                  <div><span class="text-black/50">性別：</span><%= reg.player2.gender === 'male' ? '男' : (reg.player2.gender === 'female' ? '女' : '—') %></div>
+                  <div><span class="text-black/50">DUPR：</span><%= duprOrNR(reg.player2) %></div>
+                </div>
+              </div>
+              <% } %>
+            </dl>
+          <% } else if (!loadError || loadError === '') { %>
+            <div class="rounded-2xl bg-pickle-mist p-4 text-sm text-black/75 ring-1 ring-black/5">
+              未能對應至本地報名紀錄。請保留 <strong>Stripe 收據</strong>並將付款時間、電郵及組別告知主辦方以便人手核對。
+            </div>
+          <% } %>
+
+          <div class="mt-8 flex flex-wrap gap-3">
+            <a href="/" class="inline-flex rounded-2xl bg-pickle-teal px-5 py-3 text-sm font-extrabold text-white hover:brightness-95">返回首頁</a>
+          </div>
         </div>
       </div>
     </main>

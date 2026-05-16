@@ -15,7 +15,8 @@ const {
   parseDuprInput,
   allowNRForDivision,
   validateDivisionPlayers,
-  isKidsDivision
+  isKidsDivision,
+  isSinglesDivision
 } = require("./lib/divisionRules");
 
 const app = express();
@@ -508,6 +509,7 @@ function renderApply(res, locals) {
   return res.render("pages/apply", {
     tournament: TOURNAMENT,
     registrationDeadline: getRegistrationDeadline(),
+    isSinglesDivision,
     ...locals
   });
 }
@@ -587,16 +589,21 @@ app.post("/apply", async (req, res) => {
   if (!values.division) errors.division = "請選擇組別";
   if (values.consentAccepted !== "on") errors.consentAccepted = "你必須同意個人資料收集聲明才可提交";
 
+  const singlesDiv = isSinglesDivision(values.division);
+
   if (!values.player1Name) errors.player1Name = "請填寫球員 1 姓名";
-  if (!values.player2Name) errors.player2Name = "請填寫球員 2 姓名";
+  if (!singlesDiv && !values.player2Name) errors.player2Name = "請填寫球員 2 姓名";
 
   const p1dob = safeDate(values.player1Dob);
   if (!p1dob) errors.player1Dob = "請選擇球員 1 出生日期";
-  const p2dob = safeDate(values.player2Dob);
-  if (!p2dob) errors.player2Dob = "請選擇球員 2 出生日期";
+  let p2dob = null;
+  if (!singlesDiv) {
+    p2dob = safeDate(values.player2Dob);
+    if (!p2dob) errors.player2Dob = "請選擇球員 2 出生日期";
+  }
 
   if (!values.player1Gender) errors.player1Gender = "請選擇球員 1 性別";
-  if (!values.player2Gender) errors.player2Gender = "請選擇球員 2 性別";
+  if (!singlesDiv && !values.player2Gender) errors.player2Gender = "請選擇球員 2 性別";
   if (
     values.player1Gender &&
     values.player1Gender !== GENDER.MALE &&
@@ -618,34 +625,38 @@ app.post("/apply", async (req, res) => {
   const p1kid = values.player1KidNoDupr === "on";
   const p2kid = values.player2KidNoDupr === "on";
 
-  if (kidDiv && (p1nr || p2nr)) {
+  if (kidDiv && (p1nr || (!singlesDiv && p2nr))) {
     errors.player1Dupr = "小朋友組不適用 NR；如沒有 DUPR 請勾選「沒有 DUPR 積分」";
-    errors.player2Dupr = "小朋友組不適用 NR；如沒有 DUPR 請勾選「沒有 DUPR 積分」";
+    if (!singlesDiv) errors.player2Dupr = "小朋友組不適用 NR；如沒有 DUPR 請勾選「沒有 DUPR 積分」";
   }
 
   const nrAllowed = allowNRForDivision(values.division);
-  if (!kidDiv && (p1nr || p2nr) && !nrAllowed) {
-    errors.player1Dupr = "此組別不接受 NR，請填寫 DUPR";
-    errors.player2Dupr = "此組別不接受 NR，請填寫 DUPR";
+  if (!kidDiv && !nrAllowed) {
+    if (p1nr) errors.player1Dupr = "此組別不接受 NR，請填寫 DUPR";
+    if (!singlesDiv && p2nr) errors.player2Dupr = "此組別不接受 NR，請填寫 DUPR";
   }
 
   let dup1;
-  let dup2;
+  let dup2 = { ok: true, value: null };
   if (kidDiv) {
     dup1 = p1kid ? { ok: true, value: null } : parseDuprInput(values.player1Dupr);
-    dup2 = p2kid ? { ok: true, value: null } : parseDuprInput(values.player2Dupr);
+    if (!singlesDiv) {
+      dup2 = p2kid ? { ok: true, value: null } : parseDuprInput(values.player2Dupr);
+    }
     if (!p1kid && !dup1.ok) errors.player1Dupr = dup1.error || "DUPR 無效";
-    if (!p2kid && !dup2.ok) errors.player2Dupr = dup2.error || "DUPR 無效";
+    if (!singlesDiv && !p2kid && !dup2.ok) errors.player2Dupr = dup2.error || "DUPR 無效";
   } else {
     dup1 = p1nr ? { ok: true, value: null } : parseDuprInput(values.player1Dupr);
-    dup2 = p2nr ? { ok: true, value: null } : parseDuprInput(values.player2Dupr);
+    if (!singlesDiv) {
+      dup2 = p2nr ? { ok: true, value: null } : parseDuprInput(values.player2Dupr);
+    }
     if (!p1nr && !dup1.ok) errors.player1Dupr = dup1.error || "DUPR 無效";
-    if (!p2nr && !dup2.ok) errors.player2Dupr = dup2.error || "DUPR 無效";
+    if (!singlesDiv && !p2nr && !dup2.ok) errors.player2Dupr = dup2.error || "DUPR 無效";
   }
 
-  if (!kidDiv && (p1kid || p2kid)) {
+  if (!kidDiv && (p1kid || (!singlesDiv && p2kid))) {
     errors.player1Dupr = "「沒有 DUPR 積分」只適用於小朋友組別";
-    errors.player2Dupr = "「沒有 DUPR 積分」只適用於小朋友組別";
+    if (!singlesDiv) errors.player2Dupr = "「沒有 DUPR 積分」只適用於小朋友組別";
   }
 
   const refDate = getAgeReferenceDate();
@@ -653,12 +664,12 @@ app.post("/apply", async (req, res) => {
   if (
     !Object.keys(errors).length &&
     p1dob &&
-    p2dob &&
+    (singlesDiv || p2dob) &&
     values.player1Gender &&
-    values.player2Gender &&
+    (singlesDiv || values.player2Gender) &&
     values.division &&
     dup1.ok &&
-    dup2.ok
+    (singlesDiv || dup2.ok)
   ) {
     const v = validateDivisionPlayers(
       values.division,
@@ -669,13 +680,15 @@ app.post("/apply", async (req, res) => {
         duprKidSkip: kidDiv && p1kid,
         duprRaw: values.player1Dupr
       },
-      {
-        dateOfBirth: p2dob,
-        gender: values.player2Gender,
-        duprNR: kidDiv ? false : p2nr,
-        duprKidSkip: kidDiv && p2kid,
-        duprRaw: values.player2Dupr
-      },
+      singlesDiv
+        ? null
+        : {
+            dateOfBirth: p2dob,
+            gender: values.player2Gender,
+            duprNR: kidDiv ? false : p2nr,
+            duprKidSkip: kidDiv && p2kid,
+            duprRaw: values.player2Dupr
+          },
       refDate
     );
     if (!v.ok) divisionErrors = v.errors;
@@ -706,14 +719,6 @@ app.post("/apply", async (req, res) => {
         kidNoDuprScore: kidDiv && p1kid,
         dupr: dup1.value
       },
-      player2: {
-        name: values.player2Name,
-        dateOfBirth: p2dob,
-        gender: values.player2Gender,
-        duprNR: kidDiv ? false : p2nr,
-        kidNoDuprScore: kidDiv && p2kid,
-        dupr: dup2.value
-      },
       division: values.division,
       tournamentName: TOURNAMENT.name,
       tournamentDate: TOURNAMENT.date,
@@ -722,6 +727,16 @@ app.post("/apply", async (req, res) => {
       consentAccepted: true,
       consentAcceptedAt: new Date()
     };
+    if (!singlesDiv) {
+      doc.player2 = {
+        name: values.player2Name,
+        dateOfBirth: p2dob,
+        gender: values.player2Gender,
+        duprNR: kidDiv ? false : p2nr,
+        kidNoDuprScore: kidDiv && p2kid,
+        dupr: dup2.value
+      };
+    }
 
     const created = await Registration.create(doc);
 
@@ -760,12 +775,72 @@ app.get("/success", async (req, res) => {
   const rid = String(req.query.rid || "").trim();
   const reg = rid ? await Registration.findById(rid).lean() : null;
 
-  res.render("pages/success", { tournament: TOURNAMENT, reg, divisionLabelOrValue, duprOrNR });
+  res.render("pages/success", {
+    tournament: TOURNAMENT,
+    reg,
+    divisionLabelOrValue,
+    duprOrNR,
+    isSinglesDivision
+  });
 });
 
-app.get("/payment/success", (req, res) => {
+app.get("/payment/success", async (req, res) => {
   const sessionId = String(req.query.session_id || "").trim();
-  res.render("pages/payment_success", { tournament: TOURNAMENT, sessionId });
+  const stripe = stripeClient();
+  let reg = null;
+  let stripePaymentStatus = "";
+  let loadError = "";
+  let amountCentsDisplay = null;
+
+  if (!sessionId) {
+    loadError = "missing_session";
+  } else if (!stripe) {
+    loadError = "stripe_not_configured";
+  } else {
+    try {
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      stripePaymentStatus = String(session.payment_status || "").trim();
+      let rid =
+        session.metadata && session.metadata.registrationId
+          ? String(session.metadata.registrationId).trim()
+          : "";
+      if (rid && mongoose.Types.ObjectId.isValid(rid)) {
+        reg = await Registration.findById(rid).lean();
+      }
+      if (!reg) {
+        const txn = await PaymentTransaction.findOne({
+          stripeCheckoutSessionId: sessionId
+        }).lean();
+        if (txn && txn.registration && mongoose.Types.ObjectId.isValid(String(txn.registration))) {
+          reg = await Registration.findById(txn.registration).lean();
+        }
+      }
+      if (reg) {
+        amountCentsDisplay =
+          reg.latestPaymentAmountCents != null && Number.isFinite(Number(reg.latestPaymentAmountCents))
+            ? Number(reg.latestPaymentAmountCents)
+            : divisionFeeCents(reg.division);
+      }
+    } catch (e) {
+      loadError = String(e && e.message ? e.message : e || "retrieve_failed");
+    }
+  }
+
+  const amountHkdLabel =
+    amountCentsDisplay != null && Number.isFinite(amountCentsDisplay)
+      ? `HK$${(amountCentsDisplay / 100).toFixed(2)}`
+      : "";
+
+  res.render("pages/payment_success", {
+    tournament: TOURNAMENT,
+    reg,
+    stripePaymentStatus,
+    loadError,
+    amountHkdLabel,
+    divisionLabelOrValue,
+    duprOrNR,
+    isSinglesDivision
+  });
 });
 
 app.get("/payment/cancel", (req, res) => {
@@ -939,7 +1014,8 @@ app.get("/admin/registration/:id", requireAdmin, async (req, res) => {
     duprOrNR,
     divisionFeeCents,
     stripePaymentOk: stripeConfigured(),
-    paymentFlash
+    paymentFlash,
+    isSinglesDivision
   });
 });
 

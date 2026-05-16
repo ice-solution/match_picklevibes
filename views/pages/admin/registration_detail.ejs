@@ -190,7 +190,7 @@
 
           <div class="mt-4 grid gap-4 md:grid-cols-2">
             <div class="rounded-3xl bg-pickle-mist p-5 ring-1 ring-black/5">
-              <div class="text-sm font-extrabold text-pickle-ink">球員 1</div>
+              <div class="text-sm font-extrabold text-pickle-ink"><%= typeof isSinglesDivision === 'function' && reg.division && isSinglesDivision(reg.division) ? '參賽球員（單打）' : '球員 1' %></div>
               <div class="mt-3 text-sm text-black/80">
                 <div><span class="text-black/50">姓名：</span><span class="font-semibold text-pickle-ink"><%= reg.player1?.name || "—" %></span></div>
                 <div class="mt-1"><span class="text-black/50">出生日期：</span><%= reg.player1?.dateOfBirth ? new Date(reg.player1.dateOfBirth).toISOString().slice(0, 10) : "—" %></div>
@@ -198,6 +198,13 @@
                 <div class="mt-1"><span class="text-black/50">DUPR：</span><%= duprOrNR(reg.player1) %></div>
               </div>
             </div>
+            <% const singlesReg = typeof isSinglesDivision === 'function' && reg.division && isSinglesDivision(reg.division); %>
+            <% if (singlesReg) { %>
+            <div class="rounded-3xl bg-pickle-mist p-5 ring-1 ring-black/5 md:flex md:flex-col md:justify-center">
+              <div class="text-sm font-extrabold text-pickle-ink">球員 2</div>
+              <div class="mt-3 text-sm text-black/65">此組別為單打，無需第二位球員資料。</div>
+            </div>
+            <% } else { %>
             <div class="rounded-3xl bg-pickle-mist p-5 ring-1 ring-black/5">
               <div class="text-sm font-extrabold text-pickle-ink">球員 2</div>
               <div class="mt-3 text-sm text-black/80">
@@ -207,6 +214,7 @@
                 <div class="mt-1"><span class="text-black/50">DUPR：</span><%= duprOrNR(reg.player2) %></div>
               </div>
             </div>
+            <% } %>
           </div>
 
           <% if (reg.notes) { %>
